@@ -127,11 +127,10 @@ fn render_flake_to_buffer(flake: *const flakes.FlakePattern, m: []u32, x: u32, y
 }
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const alloc = gpa.allocator();
-    defer {
-        _ = gpa.deinit();
-    }
+    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    // defer _ = gpa.deinit();
+    //
+    const alloc = std.heap.c_allocator;
 
     const display = try wl.Display.connect(null);
     const registry = try display.getRegistry();
@@ -220,8 +219,8 @@ pub fn main() !void {
 
 fn generateRandomFlake(alloc: *const std.mem.Allocator) !*flakes.Flake {
     var rand = std.rand.DefaultPrng.init(blk: {
-        var seed: u64 = undefined;
-        _ = std.posix.getrandom(std.mem.asBytes(&seed)) catch 40315527606673217;
+        var seed: u64 = 40315527606673217;
+        _ = std.posix.getrandom(std.mem.asBytes(&seed)) catch break :blk seed;
         break :blk seed;
     });
 
