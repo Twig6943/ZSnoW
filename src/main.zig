@@ -105,7 +105,7 @@ const DoubleBuffer = struct {
 
 const State = struct { doubleBuffer: *DoubleBuffer, surface: *wl.Surface, flakes: *std.ArrayList(*flakes.Flake), alloc: *const std.mem.Allocator, missing_flakes: u32 };
 
-fn render_flake_to_buffer(flake: *const flakes.FlakePattern, m: []u32, x: u32, y: u32, width: u32) void {
+fn render_flake_to_buffer(flake: *const flakes.FlakePattern, m: []u32, x: u32, y: u32, z: u8, width: u32) void {
     var row_num: u32 = 0;
 
     for (flake.pattern) |row| {
@@ -115,7 +115,9 @@ fn render_flake_to_buffer(flake: *const flakes.FlakePattern, m: []u32, x: u32, y
                 // Calculate the index in the buffer and ensure we are within bounds
                 const index = ((y + row_num) * width) + (x + column_num);
                 if (index < m.len) {
-                    m[index] = 0xFFFFFFFF; // Set pixel to white
+                    const alpha: u32 = 0xFF - z;
+                    //Shift alpha chanel to its position and OR it with color white
+                    m[index] = (alpha << 24) | 0x00FFFFFF; // Set pixel to white
                 }
             }
             column_num += 1;
@@ -227,7 +229,7 @@ fn generateRandomFlake(alloc: *const std.mem.Allocator) !*flakes.Flake {
 
     const pattern = flakes.FlakePatterns[flake_int];
     const flake = try alloc.create(flakes.Flake);
-    flake.* = flakes.Flake.new(pattern, rand.random().uintAtMost(u32, 1920), 0);
+    flake.* = flakes.Flake.new(pattern, rand.random().uintAtMost(u32, 1920), 0, rand.random().int(u8));
 
     return flake;
 }
@@ -347,7 +349,7 @@ fn render_flakes(flakeArray: *std.ArrayList(*flakes.Flake), buffer_mem: []u32) !
     clear_buffer(buffer_mem);
 
     for(flakeArray.items) |flake|{
-        render_flake_to_buffer(flake.pattern, buffer_mem, flake.x, flake.y, 1920);
+        render_flake_to_buffer(flake.pattern, buffer_mem, flake.x, flake.y, flake.z, 1920);
     }
 
 }
@@ -397,7 +399,6 @@ fn frame_callback(cb: *wl.Callback, event: wl.Callback.Event, state: * State) vo
             const missing_flakes = spawn_new_flakes(state.flakes, state.alloc, render_new_flakes) catch 0;
             state.missing_flakes = missing_flakes;
             render_flakes(state.flakes, state.doubleBuffer.mem()) catch return;
-            std.debug.print("Flakes: {}\n", .{state.flakes.items.len});
         }
     }
 }

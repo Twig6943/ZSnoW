@@ -84,12 +84,14 @@ pub const Flake = struct {
     pattern: *const FlakePattern,
     x: u32,
     y: u32,
+    z: u8,
 
-    pub fn new(pattern: *const FlakePattern, x: u32, y: u32) Flake {
+    pub fn new(pattern: *const FlakePattern, x: u32, y: u32, z: u8) Flake {
         return Flake{
             .pattern = pattern,
             .x = x,
             .y = y,
+            .z = z,
         };
     }
 
