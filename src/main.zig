@@ -229,7 +229,14 @@ fn generateRandomFlake(alloc: *const std.mem.Allocator) !*flakes.Flake {
 
     const pattern = flakes.FlakePatterns[flake_int];
     const flake = try alloc.create(flakes.Flake);
-    flake.* = flakes.Flake.new(pattern, rand.random().uintAtMost(u32, 1920), 0, rand.random().int(u8));
+    flake.* = flakes.Flake.new(
+        pattern,
+        rand.random().uintAtMost(u32, 1920),
+        0,
+        rand.random().int(u8),
+        std.math.clamp(rand.random().int(u2), 1, std.math.maxInt(u2)),
+        0,
+    );
 
     return flake;
 }
@@ -323,7 +330,7 @@ fn update_flakes(flakeArray: *std.ArrayList(*flakes.Flake), alloc:*const std.mem
     var i: u32 = 0;
     var j: u32 = 0;
     for (flakeArray.items) |flake| {
-        flake.move(0, 1);
+        flake.move(flake.dx, flake.dy);
         if (flake.y >= 1080){
             to_remove_raw[i] = j;
             i += 1;
