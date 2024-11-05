@@ -205,9 +205,9 @@ pub fn main() !void {
     }
 
     // Init rendering via frame callback
-    const state = &State{ .doubleBuffer = &doubleBuffer, .surface = surface, .flakes = &arrayList, .alloc = &alloc, .missing_flakes = 200 };
+    var state = State{ .doubleBuffer = &doubleBuffer, .surface = surface, .flakes = &arrayList, .alloc = &alloc, .missing_flakes = 150 };
     const callback = try surface.frame();
-    callback.setListener(*State, frame_callback, @constCast(state));
+    callback.setListener(*State, frame_callback, &state);
 
     surface.commit();
 
@@ -221,7 +221,7 @@ pub fn main() !void {
 fn generateRandomFlake(alloc: *const std.mem.Allocator) !*flakes.Flake {
     var rand = std.rand.DefaultPrng.init(blk: {
         var seed: u64 = undefined;
-        _ = std.posix.getrandom(std.mem.asBytes(&seed)) catch null;
+        _ = std.posix.getrandom(std.mem.asBytes(&seed)) catch 40315527606673217;
         break :blk seed;
     });
 
@@ -229,12 +229,13 @@ fn generateRandomFlake(alloc: *const std.mem.Allocator) !*flakes.Flake {
 
     const pattern = flakes.FlakePatterns[flake_int];
     const flake = try alloc.create(flakes.Flake);
+    const dy: u3 = rand.random().int(u2);
     flake.* = flakes.Flake.new(
         pattern,
         rand.random().uintAtMost(u32, 1920),
         0,
-        rand.random().int(u8),
-        std.math.clamp(rand.random().int(u2), 1, std.math.maxInt(u2)),
+        std.math.clamp(rand.random().int(u8), 0, 250),
+        dy + 1,
         0,
     );
 
