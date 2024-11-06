@@ -8,8 +8,7 @@ const xdg = wayland.client.xdg;
 const zwlr = wayland.client.zwlr;
 
 const flakes = @import("flakes/flake.zig");
-
-const FlakeArray = std.ArrayList(*flakes.Flake);
+const snow = @import("snow.zig");
 
 // zig fmt: off
 const Context = struct { 
@@ -102,28 +101,7 @@ const DoubleBuffer = struct {
     }
 };
 
-const State = struct { doubleBuffer: *DoubleBuffer, surface: *wl.Surface, flakes: *std.ArrayList(*flakes.Flake), alloc: *const std.mem.Allocator, missing_flakes: u32, running: *const bool };
-
-fn renderFlakeToBuffer(flake: *const flakes.Flake, m: []u32, width: u32) void {
-    var row_num: u32 = 0;
-
-    for (flake.pattern.pattern) |row| {
-        var column_num: u32 = 0; // Reset column_num at the beginning of each row
-        for (row) |pv| {
-            if (pv) {
-                // Calculate the index in the buffer and ensure we are within bounds
-                const index = ((flake.y + row_num) * width) + (flake.x + column_num);
-                if (index < m.len) {
-                    const alpha: u32 = 0xFF - flake.z;
-                    //Shift alpha chanel to its position and OR it with color white
-                    m[index] = (alpha << 24) | 0x00FFFFFF; // Set pixel to white
-                }
-            }
-            column_num += 1;
-        }
-        row_num += 1;
-    }
-}
+const State = struct { doubleBuffer: *DoubleBuffer, surface: *wl.Surface, flakes: *snow.FlakeArray, alloc: *const std.mem.Allocator, missing_flakes: u32, running: *const bool };
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -206,6 +184,8 @@ pub fn main() !void {
         .running = &running 
     };
     // zig fmt: on
+
+    // This callback exists once after that it will get destroyed and another starts
     const callback = try surface.frame();
     callback.setListener(*State, frameCallback, &state);
 
@@ -237,30 +217,6 @@ pub fn main() !void {
     layer_shell.destroy();
     display.disconnect();
     _ = gpa.detectLeaks();
-}
-
-fn generateRandomFlake(alloc: *const std.mem.Allocator) !*flakes.Flake {
-    var rand = std.rand.DefaultPrng.init(blk: {
-        var seed: u64 = 40315527606673217;
-        _ = std.posix.getrandom(std.mem.asBytes(&seed)) catch break :blk seed;
-        break :blk seed;
-    });
-
-    const flake_int = rand.random().uintAtMost(u8, flakes.FlakePatterns.len - 1);
-
-    const pattern = flakes.FlakePatterns[flake_int];
-    const flake = try alloc.create(flakes.Flake);
-    const dy: u3 = rand.random().int(u2);
-    flake.* = flakes.Flake.new(
-        pattern,
-        rand.random().uintAtMost(u32, 1920),
-        0,
-        std.math.clamp(rand.random().int(u8), 0, 250),
-        dy + 1,
-        0,
-    );
-
-    return flake;
 }
 
 /// Listen to the registry events, to update collect what we need
@@ -339,76 +295,13 @@ fn outputListener(_: *wl.Output, event: wl.Output.Event, output_info: *OutputInf
 }
 
 
-
-fn updateFlakes(flakeArray: *std.ArrayList(*flakes.Flake), alloc:*const std.mem.Allocator) !u32{
-
-    const to_remove_raw = try alloc.alloc(u32, flakeArray.items.len);
-    //std.debug.print("to_remove_raw {x}\n", .{@intFromPtr(to_remove_raw.ptr)});
-    defer alloc.free(to_remove_raw);
-
-    var i: u32 = 0;
-    var j: u32 = 0;
-    for (flakeArray.items) |flake| {
-        flake.move(flake.dx, flake.dy);
-        if (flake.y >= 1080){
-            to_remove_raw[i] = j;
-            i += 1;
-        }
-        j += 1;
-    }
-
-    const to_remove = to_remove_raw[0..i];
-    std.mem.sort(u32, to_remove, {}, comptime std.sort.desc(u32));
-    for (to_remove) |index|{
-        const flake  = flakeArray.orderedRemove(index);
-        alloc.destroy(flake);
-    }
-
-    return i;
-}
-
-fn clearBuffer(buffer_mem: []u32) void {
-    @memset(buffer_mem, 0x00000000);
-}
-
-fn renderFlakes(flakeArray: *std.ArrayList(*flakes.Flake), buffer_mem: []u32) !void {
-    clearBuffer(buffer_mem);
-
-    for(flakeArray.items) |flake|{
-        renderFlakeToBuffer(flake, buffer_mem,  1920);
-    }
-
-}
-
-/// Returns the amount of not spawned flakes
-fn spawnNewFlakes(flakeArray: *FlakeArray, alloc: *const std.mem.Allocator, i: u32) !u32 {
-    var rand = std.rand.DefaultPrng.init(blk: {
-        var seed: u64 = undefined;
-        _ = std.posix.getrandom(std.mem.asBytes(&seed)) catch null;
-        break :blk seed;
-    });
-
-    var j = i;
-    for (0..i)|_| {
-        if (rand.random().uintAtMost(u16, 1000) >= 999){
-            const flake = generateRandomFlake(alloc) catch undefined;
-            if (flake != undefined){
-                try flakeArray.append(flake);
-            }
-            j -= 1;
-        }
-    }
-
-    return j;
-
-}
-
-fn frameCallback(cb: *wl.Callback, event: wl.Callback.Event, state: * State) void{
+fn frameCallback(cb: *wl.Callback, event: wl.Callback.Event, state: *State) void{
     switch(event){
         .done => {
             if(state.running.*){
                 cb.destroy();
 
+                // Do I own this now??
                 const cbN = state.surface.frame() catch return;
                 cbN.setListener(*State, frameCallback, state);
 
@@ -421,11 +314,11 @@ fn frameCallback(cb: *wl.Callback, event: wl.Callback.Event, state: * State) voi
                 // Get the next buffer to work on
                 _ = state.doubleBuffer.next();
 
-                const missing = updateFlakes(state.flakes, state.alloc) catch 0;
+                const missing = snow.updateFlakes(state.flakes, state.alloc) catch 0;
                 const render_new_flakes = state.missing_flakes + missing;
-                const missing_flakes = spawnNewFlakes(state.flakes, state.alloc, render_new_flakes) catch 0;
+                const missing_flakes = snow.spawnNewFlakes(state.flakes, state.alloc, render_new_flakes) catch 0;
                 state.missing_flakes = missing_flakes;
-                renderFlakes(state.flakes, state.doubleBuffer.mem()) catch return;
+                snow.renderFlakes(state.flakes, state.doubleBuffer.mem()) catch return;
             }
         }
     }
