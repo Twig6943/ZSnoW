@@ -15,7 +15,6 @@ const FlakeArray = std.ArrayList(*flakes.Flake);
 const Context = struct { 
     shm: ?*wl.Shm,
     compositor: ?*wl.Compositor,
-    wm_base: ?*xdg.WmBase,
     layer_shell: ?*zwlr.LayerShellV1,
     // outputs: *std.ArrayList(*OutputInfo),
     alloc: *const std.mem.Allocator,
@@ -103,7 +102,7 @@ const DoubleBuffer = struct {
     }
 };
 
-const State = struct { doubleBuffer: *DoubleBuffer, surface: *wl.Surface, flakes: *std.ArrayList(*flakes.Flake), alloc: *const std.mem.Allocator, missing_flakes: u32 };
+const State = struct { doubleBuffer: *DoubleBuffer, surface: *wl.Surface, flakes: *std.ArrayList(*flakes.Flake), alloc: *const std.mem.Allocator, missing_flakes: u32, running: *const bool };
 
 fn renderFlakeToBuffer(flake: *const flakes.Flake, m: []u32, width: u32) void {
     var row_num: u32 = 0;
@@ -147,7 +146,6 @@ pub fn main() !void {
     var context = Context{ 
         .shm = null,
         .compositor = null,
-        .wm_base = null,
         .layer_shell = null,
         // .outputs = &outputs,
         .alloc = &alloc
@@ -162,14 +160,10 @@ pub fn main() !void {
     // Extract all we need
     const shm = context.shm orelse return error.NoWlShm;
     const compositor = context.compositor orelse return error.NoWlCompositor;
-    const wm_base = context.wm_base orelse return error.NoXdgWmBase;
     const layer_shell = context.layer_shell orelse return error.NoLayerShell;
-
-    _ = wm_base;
 
     // Create new double buffer
     var doubleBuffer = try DoubleBuffer.new(1920, 1080, "waysnow", shm);
-    defer doubleBuffer.destroy();
     @memset(doubleBuffer.mem(), 0x00000000);
     _ = doubleBuffer.next();
     @memset(doubleBuffer.mem(), 0x00000000);
@@ -177,13 +171,11 @@ pub fn main() !void {
 
     // Create a surface to draw the buffer on
     const surface = try compositor.createSurface();
-    defer surface.destroy();
     surface.commit();
     if (display.roundtrip() != .SUCCESS) return error.RoundtripFailed;
 
     // Make a layer surface
     const layer_surface: *zwlr.LayerSurfaceV1 = try layer_shell.getLayerSurface(surface, null, zwlr.LayerShellV1.Layer.bottom, "waysnow");
-    defer layer_surface.destroy();
     layer_surface.setSize(1920, 1080);
     var running = true;
     // Listen for configure and kill calls
@@ -196,29 +188,54 @@ pub fn main() !void {
 
     // Flake management
     var arrayList = try std.ArrayList(*flakes.Flake).initCapacity(alloc, 100);
-    defer {
-        for (arrayList.items) |flake| {
-            alloc.destroy(flake);
-        }
-        // arrayList.deinit();
-    }
+    // defer {
+    //     for (arrayList.items) |flake| {
+    //         alloc.destroy(flake);
+    //     }
+    //     arrayList.deinit();
+    // }
 
     // Init rendering via frame callback
-    var state = State{ .doubleBuffer = &doubleBuffer, .surface = surface, .flakes = &arrayList, .alloc = &alloc, .missing_flakes = 100 };
+    // zig fmt: off
+    var state = State{ 
+        .doubleBuffer = &doubleBuffer,
+        .surface = surface,
+        .flakes = &arrayList,
+        .alloc = &alloc,
+        .missing_flakes = 100,
+        .running = &running 
+    };
+    // zig fmt: on
     const callback = try surface.frame();
     callback.setListener(*State, frameCallback, &state);
 
     surface.commit();
 
     // Keep running
-    while (running) {
+    // while (running) {
+    //     if (display.dispatch() != .SUCCESS) return error.Dispatchfailed;
+    // }
+
+    for (0..2000) |_| {
         if (display.dispatch() != .SUCCESS) return error.Dispatchfailed;
     }
+
+    running = false;
+    if (display.dispatch() != .SUCCESS) return error.Dispatchfailed;
 
     for (arrayList.items) |flake| {
         alloc.destroy(flake);
     }
+
+    doubleBuffer.destroy();
     arrayList.deinit();
+    surface.destroy();
+    layer_surface.destroy();
+    registry.destroy();
+    shm.destroy();
+    compositor.destroy();
+    layer_shell.destroy();
+    display.disconnect();
     _ = gpa.detectLeaks();
 }
 
@@ -256,9 +273,6 @@ fn registryListener(registry: *wl.Registry, event: wl.Registry.Event, context: *
 
             } else if (mem.orderZ(u8, global.interface, wl.Shm.getInterface().name) == .eq) {
                 context.shm = registry.bind(global.name, wl.Shm, 1) catch return;
-
-            } else if (mem.orderZ(u8, global.interface, xdg.WmBase.getInterface().name) == .eq) {
-                context.wm_base = registry.bind(global.name, xdg.WmBase, 1) catch return;
 
             } else if (mem.orderZ(u8, global.interface, zwlr.LayerShellV1.getInterface().name) == .eq) {
                 context.layer_shell = registry.bind(global.name, zwlr.LayerShellV1, 4) catch return;
@@ -392,25 +406,27 @@ fn spawnNewFlakes(flakeArray: *FlakeArray, alloc: *const std.mem.Allocator, i: u
 fn frameCallback(cb: *wl.Callback, event: wl.Callback.Event, state: * State) void{
     switch(event){
         .done => {
-            cb.destroy();
+            if(state.running.*){
+                cb.destroy();
 
-            const cbN = state.surface.frame() catch return;
-            cbN.setListener(*State, frameCallback, state);
+                const cbN = state.surface.frame() catch return;
+                cbN.setListener(*State, frameCallback, state);
 
-            const buffer = state.doubleBuffer.current();
+                const buffer = state.doubleBuffer.current();
 
-            state.surface.attach(buffer, 0, 0);
-            state.surface.damage(0, 0, std.math.maxInt(i32), std.math.maxInt(i32));
-            state.surface.commit();
+                state.surface.attach(buffer, 0, 0);
+                state.surface.damage(0, 0, std.math.maxInt(i32), std.math.maxInt(i32));
+                state.surface.commit();
 
-            // Get the next buffer to work on
-            _ = state.doubleBuffer.next();
+                // Get the next buffer to work on
+                _ = state.doubleBuffer.next();
 
-            const missing = updateFlakes(state.flakes, state.alloc) catch 0;
-            const render_new_flakes = state.missing_flakes + missing;
-            const missing_flakes = spawnNewFlakes(state.flakes, state.alloc, render_new_flakes) catch 0;
-            state.missing_flakes = missing_flakes;
-            renderFlakes(state.flakes, state.doubleBuffer.mem()) catch return;
+                const missing = updateFlakes(state.flakes, state.alloc) catch 0;
+                const render_new_flakes = state.missing_flakes + missing;
+                const missing_flakes = spawnNewFlakes(state.flakes, state.alloc, render_new_flakes) catch 0;
+                state.missing_flakes = missing_flakes;
+                renderFlakes(state.flakes, state.doubleBuffer.mem()) catch return;
+            }
         }
     }
 }
