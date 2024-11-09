@@ -15,19 +15,19 @@ const Context = struct {
     shm: ?*wl.Shm,
     compositor: ?*wl.Compositor,
     layer_shell: ?*zwlr.LayerShellV1,
-    // outputs: *std.ArrayList(*OutputInfo),
-    alloc: *const std.mem.Allocator,
+    outputs: std.ArrayList(*OutputInfo),
+    alloc: std.mem.Allocator,
     running: *bool,
     display: *wl.Display,
 };
 
 const OutputInfo = struct {
     output: ?*wl.Output,
-    x_anchor: i32,
-    y_anchor: i32,
     pHeight: i32,
     pWidth: i32,
-    name: []const u8
+    name: []const u8,
+    uname: u32,
+    state: *State
 };
 
 // zig fmt: on
@@ -43,7 +43,8 @@ const DoubleBuffer = struct {
 
     // FIXME: Check that width height are valid
     fn new(width: u32, height: u32, name: []const u8, shm: *wl.Shm, alloc: std.mem.Allocator) !*DoubleBuffer {
-        const stride = width * 4;
+        // std.debug.print("{}x{}\n", .{ width, height });
+        const stride: u64 = width * 4;
         const size = stride * height * 2;
         const fd = try posix.memfd_create(name, 0);
         try posix.ftruncate(fd, size);
@@ -128,7 +129,7 @@ const State = struct {
         self.doubleBuffer.destroy();
         self.flakes.deinit();
     }
-    };
+};
 // zig fmt: on
 
 fn manageOutput(alloc: std.mem.Allocator, output: *const OutputInfo, context: *Context) !*State {
@@ -136,7 +137,12 @@ fn manageOutput(alloc: std.mem.Allocator, output: *const OutputInfo, context: *C
     const compositor = context.compositor orelse return error.NoWlCompositor;
     const layer_shell = context.layer_shell orelse return error.NoLayerShell;
 
-    var doubleBuffer = try DoubleBuffer.new(@intCast(output.pWidth), @intCast(output.pHeight), "waysnow", shm, alloc);
+    // FIXME: Leaking
+    var bufferName = try alloc.alloc(u8, output.name.len + "waysnow_".len);
+    @memcpy(bufferName[0.."waysnow_".len], "waysnow_");
+    @memcpy(bufferName["waysnow_".len .. "waysnow_".len + output.name.len], output.name);
+
+    var doubleBuffer = try DoubleBuffer.new(@intCast(output.pWidth), @intCast(output.pHeight), bufferName, shm, alloc);
     @memset(doubleBuffer.mem(), 0x00000000);
     _ = doubleBuffer.next();
     @memset(doubleBuffer.mem(), 0x00000000);
@@ -146,7 +152,7 @@ fn manageOutput(alloc: std.mem.Allocator, output: *const OutputInfo, context: *C
     surface.commit();
 
     // Make a layer surface
-    const layer_surface: *zwlr.LayerSurfaceV1 = try layer_shell.getLayerSurface(surface, null, zwlr.LayerShellV1.Layer.bottom, "waysnow");
+    const layer_surface: *zwlr.LayerSurfaceV1 = try layer_shell.getLayerSurface(surface, output.output, zwlr.LayerShellV1.Layer.bottom, "waysnow");
     layer_surface.setSize(1920, 1080);
 
     const running = try alloc.create(bool);
@@ -186,7 +192,7 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var alloc = gpa.allocator();
+    const alloc = gpa.allocator();
 
     const display = try wl.Display.connect(null);
     const registry = try display.getRegistry();
@@ -199,9 +205,10 @@ pub fn main() !void {
         .compositor = null,
         .layer_shell = null,
         // .outputs = &outputs,
-        .alloc = &alloc,
+        .alloc = alloc,
         .running = &running,
         .display = display,
+        .outputs = try std.ArrayList(*OutputInfo).initCapacity(alloc, 5)
         };
     // zig fmt: on
 
@@ -209,10 +216,6 @@ pub fn main() !void {
 
     // Blocking roundtrip call to get context
     if (display.roundtrip() != .SUCCESS) return error.RoundtripFailed;
-
-    const outputInfo = OutputInfo{ .name = "mon1", .output = null, .pWidth = 1920, .pHeight = 1080, .x_anchor = 0, .y_anchor = 0 };
-    const s = try manageOutput(alloc, &outputInfo, &context);
-    defer alloc.destroy(s);
 
     // Keep running
     while (running) {
@@ -240,24 +243,25 @@ fn registryListener(registry: *wl.Registry, event: wl.Registry.Event, context: *
                 context.layer_shell = registry.bind(global.name, zwlr.LayerShellV1, 4) catch return;
 
             } else if (mem.orderZ(u8, global.interface, wl.Output.getInterface().name) == .eq){
-                // const output : *wl.Output = registry.bind(global.name, wl.Output, 4) catch return;
+                const output : *wl.Output = registry.bind(global.name, wl.Output, 4) catch return;
                 
-                // const output_info: *OutputInfo = context.alloc.create(OutputInfo) catch return;
-                // std.debug.print("Address of output: {x}\n", .{@intFromPtr(output_info)});
-                // output_info.* = OutputInfo{
-                //     .output = output,
-                //     .pWidth = 0,
-                //     .pHeight = 0,
-                //     .x_anchor = 0,
-                //     .y_anchor = 0
-                // };
-                //
-                // output.setListener(*OutputInfo, outputListener, output_info);
-                // context.outputs.append(output_info) catch return;
+                const output_info: *OutputInfo = context.alloc.create(OutputInfo) catch return;
+                output_info.* = OutputInfo{
+                    .output = output,
+                    .pWidth = undefined,
+                    .pHeight = undefined,
+                    .name = undefined,
+                    .uname = global.name,
+                    .state = undefined,
+                };
+                
+
+                output.setListener(*Context, outputListener, context);
+                context.outputs.append(output_info) catch return;
             }
         },
         .global_remove => |global_remove|{
-            _ = global_remove;
+            std.debug.print("Deregistering output: {}\n", .{global_remove.name});
         },
     }
 }
@@ -279,26 +283,48 @@ fn layerSurfaceListener(layer_surface: *zwlr.LayerSurfaceV1, event: zwlr.LayerSu
 
 }
 
-fn outputListener(_: *wl.Output, event: wl.Output.Event, output_info: *OutputInfo) void {
+fn outputListener(output: *wl.Output, event: wl.Output.Event, context: *Context) void {
 
+    var outputInfo: *OutputInfo = undefined;
+    for (context.outputs.items) |outputInfoIterated| {
+        if (outputInfoIterated.output == output) {
+            outputInfo = outputInfoIterated;
+        }
+    }
+
+    if (outputInfo == undefined) { 
+        std.debug.print("Received unmanaged output\n", .{});
+        return;
+    }
+
+    // FIXME: Leaking alot of memory here
     switch (event) {
         .geometry => |geometry| {
-            output_info.x_anchor = geometry.x;
-            output_info.y_anchor = geometry.y;           
+            _ = geometry;
         },
         .mode => |geometry| {
-            output_info.pHeight = geometry.height;
-            output_info.pWidth = geometry.width;
-            std.debug.print("{d}x{d}\n", .{geometry.width, geometry.height});
+            outputInfo.pHeight = geometry.height;
+            outputInfo.pWidth = geometry.width;
         },
 
         .name => |name|{
-            std.debug.print("{s}\n", .{name.name});
+            const n = context.alloc.alloc(u8, std.mem.len(name.name)) catch return;
+            @memcpy(n, name.name);
+            outputInfo.name = n;
         },
 
-        else => {}
+        .done => {
+            if (!std.mem.eql(u8, outputInfo.name, undefined) and outputInfo.pWidth != undefined and outputInfo.pHeight != undefined and outputInfo.state != undefined){ 
+                const state = manageOutput(context.alloc, outputInfo, context)
+                    catch {std.debug.print("Failed to manage output\n", .{}); return;};
+                outputInfo.state = state;
+            }
+        },
 
+        else => {},
     }
+
+
 
 }
 
@@ -306,7 +332,6 @@ fn outputListener(_: *wl.Output, event: wl.Output.Event, output_info: *OutputInf
 fn frameCallback(cb: *wl.Callback, event: wl.Callback.Event, state: *State) void{
     switch(event){
         .done => {
-            std.debug.print("{}\n", .{state.running.*});
             if(state.running.*){
                 cb.destroy();
 
