@@ -69,7 +69,7 @@ const DoubleBuffer = struct {
         const buffer2 = try pool.createBuffer(@intCast(size / 2), @intCast(width), @intCast(height), @intCast(stride), wl.Shm.Format.argb8888);
         pool.destroy();
 
-        var bufferName = try alloc.alloc(u8, name + "waysnow_".len);
+        var bufferName = try alloc.alloc(u8, name.len + "waysnow_".len);
         @memcpy(bufferName[0.."waysnow_".len], "waysnow_");
         @memcpy(bufferName["waysnow_".len .. "waysnow_".len + name.len], name);
 
@@ -361,7 +361,7 @@ fn frameCallback(cb: *wl.Callback, event: wl.Callback.Event, state: *State) void
 
                 const missing = snow.updateFlakes(&state.flakes, state.alloc) catch 0;
                 const render_init_flakes = state.missing_flakes + missing;
-                const missing_flakes = snow.spawninitFlakes(&state.flakes, state.alloc, render_init_flakes) catch 0;
+                const missing_flakes = snow.spawnNewFlakes(&state.flakes, state.alloc, render_init_flakes) catch 0;
                 state.missing_flakes = missing_flakes;
                 snow.renderFlakes(&state.flakes, state.doubleBuffer.mem()) catch return;
             }
