@@ -23,11 +23,40 @@ const Context = struct {
 
 const OutputInfo = struct {
     output: ?*wl.Output,
-    pHeight: i32,
-    pWidth: i32,
+    pHeight: u32,
+    pWidth: u32,
     name: []const u8,
     uname: u32,
     state: *State,
+    alloc: std.mem.Allocator,
+
+    pub fn init(output: ?*wl.Output, name: u32, alloc: std.mem.Allocator) !*OutputInfo{
+
+        const outputInfo: *OutputInfo = try alloc.create(OutputInfo);
+        outputInfo.* = OutputInfo{
+            .output = output,
+            .pWidth = undefined,
+            .pHeight = undefined,
+            .name = undefined,
+            .uname = name,
+            .state = undefined,
+            .alloc = alloc
+        };
+
+        return outputInfo;
+    }
+
+    pub fn setName(self: *OutputInfo, name: [*:0]const u8) void {
+        const n = self.alloc.alloc(u8, std.mem.len(name)) catch return;
+        @memcpy(n, name);
+        self.name = n;
+    }
+
+    pub fn deinit(self: *OutputInfo) void{
+        self.state.deinit();
+        self.alloc.free(self.name);
+        self.alloc.destroy(self);
+    }
 };
 
 // zig fmt: on
@@ -139,11 +168,30 @@ const State = struct {
     alloc: std.mem.Allocator,
     missing_flakes: u32,
     running: *const bool,
+    outputWidth: u32,
     //callBackFunction: fn(cb: *wl.Callback, event: wl.Callback.Event, state: *State) void
 
-    fn deinit(self: *State) void{
-        self.doubleBuffer.destroy();
+    fn init(doubleBuffer: *DoubleBuffer, surface: *wl.Surface, running: *bool, outputWidth: u32, alloc: std.mem.Allocator) !*State {
+        // zig fmt: off
+        const state = try alloc.create(State);
+        state.* = State{ 
+            .doubleBuffer = doubleBuffer,
+            .surface = surface,
+            .flakes = try std.ArrayList(*flakes.Flake).initCapacity(alloc, 100),
+            .alloc = alloc,
+            .missing_flakes = 100,
+            .running = running,
+            .outputWidth = outputWidth
+        };
+        // zig fmt: on
+        return state;
+    }
+
+    fn deinit(self: *State) void {
+        self.doubleBuffer.deinit();
         self.flakes.deinit();
+        self.surface.destroy();
+        self.alloc.destroy(self);
     }
 };
 // zig fmt: on
@@ -164,7 +212,7 @@ fn manageOutput(alloc: std.mem.Allocator, output: *const OutputInfo, context: *C
 
     // Make a layer surface
     const layer_surface: *zwlr.LayerSurfaceV1 = try layer_shell.getLayerSurface(surface, output.output, zwlr.LayerShellV1.Layer.bottom, "waysnow");
-    layer_surface.setSize(1920, 1080);
+    layer_surface.setSize(output.pWidth, output.pHeight);
 
     const running = try alloc.create(bool);
     running.* = true;
@@ -178,17 +226,7 @@ fn manageOutput(alloc: std.mem.Allocator, output: *const OutputInfo, context: *C
     surface.attach(doubleBuffer.next(), 0, 0);
 
     // Init rendering via frame callback
-    // zig fmt: off
-    const state = try alloc.create(State);
-    state.* = State{ 
-        .doubleBuffer = doubleBuffer,
-        .surface = surface,
-        .flakes = try std.ArrayList(*flakes.Flake).initCapacity(alloc, 100),
-        .alloc = alloc,
-        .missing_flakes = 100,
-        .running = running,
-    };
-    // zig fmt: on
+    const state = try State.init(doubleBuffer, surface, running, output.pWidth, alloc);
 
     // This callback exists once after that it will get destroyed and another starts
     const callback = try surface.frame();
@@ -256,28 +294,29 @@ fn registryListener(registry: *wl.Registry, event: wl.Registry.Event, context: *
             } else if (mem.orderZ(u8, global.interface, wl.Output.getInterface().name) == .eq){
                 const output : *wl.Output = registry.bind(global.name, wl.Output, 4) catch return;
                 
-                const output_info: *OutputInfo = context.alloc.create(OutputInfo) catch return;
-                output_info.* = OutputInfo{
-                    .output = output,
-                    .pWidth = undefined,
-                    .pHeight = undefined,
-                    .name = undefined,
-                    .uname = global.name,
-                    .state = undefined,
-                };
-                
-
+                const outputInfo = OutputInfo.init(output, global.name, context.alloc) 
+                    catch { std.debug.print("Cannot create new output\n", .{}); return; };
+                context.outputs.append(outputInfo) catch return;
                 output.setListener(*Context, outputListener, context);
-                context.outputs.append(output_info) catch return;
             }
         },
         .global_remove => |global_remove|{
             std.debug.print("Deregistering output: {}\n", .{global_remove.name});
+            var i :usize= 0;
+            for (context.outputs.items) |outputInfo|{
+                if(outputInfo.uname == global_remove.name){
+                    _ = context.outputs.swapRemove(i);
+                    outputInfo.output.?.destroy();
+                    outputInfo.deinit();
+                }
+                i += 1;
+            }
         },
     }
 }
 
 /// Listen to events of our layer surface
+// TODO: Pass context instead of running and set correct size
 fn layerSurfaceListener(layer_surface: *zwlr.LayerSurfaceV1, event: zwlr.LayerSurfaceV1.Event, running: *bool) void {
     switch (event) {
         .configure => |configure| {
@@ -308,20 +347,17 @@ fn outputListener(output: *wl.Output, event: wl.Output.Event, context: *Context)
         return;
     }
 
-    // FIXME: Leaking alot of memory here
     switch (event) {
         .geometry => |geometry| {
             _ = geometry;
         },
         .mode => |geometry| {
-            outputInfo.pHeight = geometry.height;
-            outputInfo.pWidth = geometry.width;
+            outputInfo.pHeight = @intCast(geometry.height);
+            outputInfo.pWidth = @intCast(geometry.width);
         },
 
         .name => |name|{
-            const n = context.alloc.alloc(u8, std.mem.len(name.name)) catch return;
-            @memcpy(n, name.name);
-            outputInfo.name = n;
+            outputInfo.setName(name.name);
         },
 
         .done => {
@@ -359,7 +395,7 @@ fn frameCallback(cb: *wl.Callback, event: wl.Callback.Event, state: *State) void
                 // Get the next buffer to work on
                 _ = state.doubleBuffer.next();
 
-                const missing = snow.updateFlakes(&state.flakes, state.alloc) catch 0;
+                const missing = snow.updateFlakes(&state.flakes, state.alloc, state.outputWidth) catch 0;
                 const render_init_flakes = state.missing_flakes + missing;
                 const missing_flakes = snow.spawnNewFlakes(&state.flakes, state.alloc, render_init_flakes) catch 0;
                 state.missing_flakes = missing_flakes;
