@@ -27,7 +27,7 @@ const OutputInfo = struct {
     pWidth: i32,
     name: []const u8,
     uname: u32,
-    state: *State
+    state: *State,
 };
 
 // zig fmt: on
@@ -40,9 +40,11 @@ const DoubleBuffer = struct {
     memory2: []u32,
     fd: i32,
     total_size: u64,
+    name: []u8,
+    alloc: std.mem.Allocator,
 
     // FIXME: Check that width height are valid
-    fn new(width: u32, height: u32, name: []const u8, shm: *wl.Shm, alloc: std.mem.Allocator) !*DoubleBuffer {
+    fn init(width: u32, height: u32, name: []const u8, shm: *wl.Shm, alloc: std.mem.Allocator) !*DoubleBuffer {
         // std.debug.print("{}x{}\n", .{ width, height });
         const stride: u64 = width * 4;
         const size = stride * height * 2;
@@ -67,14 +69,24 @@ const DoubleBuffer = struct {
         const buffer2 = try pool.createBuffer(@intCast(size / 2), @intCast(width), @intCast(height), @intCast(stride), wl.Shm.Format.argb8888);
         pool.destroy();
 
+        var bufferName = try alloc.alloc(u8, name + "waysnow_".len);
+        @memcpy(bufferName[0.."waysnow_".len], "waysnow_");
+        @memcpy(bufferName["waysnow_".len .. "waysnow_".len + name.len], name);
+
         const db = try alloc.create(DoubleBuffer);
+
         // zig fmt: off
         db.* = DoubleBuffer{ 
             .buffer1 = buffer1,
             .buffer2 = buffer2,
             .memory1 = data[0..(size/(2 * 4))],
             .memory2 = data[(size / (2 * 4)) .. size / 4],
-            .i = true, .fd = fd, .total_size = size };
+            .i = true,
+            .fd = fd,
+            .total_size = size,
+            .alloc = alloc,
+            .name = bufferName
+        };
         // zig fmt: on
         return db;
     }
@@ -104,14 +116,18 @@ const DoubleBuffer = struct {
         };
     }
 
-    fn destroy(self: *DoubleBuffer) void {
+    fn deinit(self: *DoubleBuffer) void {
         self.buffer1.destroy();
         self.buffer2.destroy();
+        // TODO: Is this required?
         const memory: []const u32 = self.memory1.ptr[0 .. self.memory1.len + self.memory2.len];
         const u8mem: []align(4096) const u8 = @alignCast(std.mem.bytesAsSlice(u8, memory));
 
         std.posix.munmap(u8mem);
         posix.close(self.fd);
+
+        self.alloc.free(self.name);
+        self.alloc.destroy(self);
     }
 };
 
@@ -137,12 +153,7 @@ fn manageOutput(alloc: std.mem.Allocator, output: *const OutputInfo, context: *C
     const compositor = context.compositor orelse return error.NoWlCompositor;
     const layer_shell = context.layer_shell orelse return error.NoLayerShell;
 
-    // FIXME: Leaking
-    var bufferName = try alloc.alloc(u8, output.name.len + "waysnow_".len);
-    @memcpy(bufferName[0.."waysnow_".len], "waysnow_");
-    @memcpy(bufferName["waysnow_".len .. "waysnow_".len + output.name.len], output.name);
-
-    var doubleBuffer = try DoubleBuffer.new(@intCast(output.pWidth), @intCast(output.pHeight), bufferName, shm, alloc);
+    var doubleBuffer = try DoubleBuffer.init(@intCast(output.pWidth), @intCast(output.pHeight), output.name, shm, alloc);
     @memset(doubleBuffer.mem(), 0x00000000);
     _ = doubleBuffer.next();
     @memset(doubleBuffer.mem(), 0x00000000);
@@ -349,8 +360,8 @@ fn frameCallback(cb: *wl.Callback, event: wl.Callback.Event, state: *State) void
                 _ = state.doubleBuffer.next();
 
                 const missing = snow.updateFlakes(&state.flakes, state.alloc) catch 0;
-                const render_new_flakes = state.missing_flakes + missing;
-                const missing_flakes = snow.spawnNewFlakes(&state.flakes, state.alloc, render_new_flakes) catch 0;
+                const render_init_flakes = state.missing_flakes + missing;
+                const missing_flakes = snow.spawninitFlakes(&state.flakes, state.alloc, render_init_flakes) catch 0;
                 state.missing_flakes = missing_flakes;
                 snow.renderFlakes(&state.flakes, state.doubleBuffer.mem()) catch return;
             }
