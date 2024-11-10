@@ -10,6 +10,10 @@ const zwlr = wayland.client.zwlr;
 const flakes = @import("flakes/flake.zig");
 const snow = @import("snow.zig");
 
+pub const std_options = .{
+    .log_level = .debug,
+};
+
 // zig fmt: off
 const Context = struct { 
     shm: ?*wl.Shm,
@@ -271,7 +275,7 @@ pub fn main() !void {
         if (display.dispatch() != .SUCCESS) return error.Dispatchfailed;
     }
 
-    running = true;
+    running = false;
     if (display.dispatch() != .SUCCESS) return error.Dispatchfailed;
 
     _ = gpa.detectLeaks();
@@ -334,19 +338,19 @@ fn layerSurfaceListener(layer_surface: *zwlr.LayerSurfaceV1, event: zwlr.LayerSu
 }
 
 fn outputListener(output: *wl.Output, event: wl.Output.Event, context: *Context) void {
-
-    var outputInfo: *OutputInfo = undefined;
-    for (context.outputs.items) |outputInfoIterated| {
-        if (outputInfoIterated.output == output) {
-            outputInfo = outputInfoIterated;
+    const outputInfo = blk: {
+        for (context.outputs.items) |outputInfoIterated| {
+            if (output == outputInfoIterated.output) {
+                break :blk outputInfoIterated;
+            }
         }
-    }
-
-    if (outputInfo == undefined) { 
-        std.debug.print("Received unmanaged output\n", .{});
+        std.log.warn("Received unmanaged output\n", .{});
         return;
-    }
+    };
 
+    // std.debug.print("Info {?}\n", .{outputInfoNull});
+
+    std.log.debug("Modifying output: {}\n", .{outputInfo.uname});
     switch (event) {
         .geometry => |geometry| {
             _ = geometry;
@@ -361,11 +365,9 @@ fn outputListener(output: *wl.Output, event: wl.Output.Event, context: *Context)
         },
 
         .done => {
-            if (!std.mem.eql(u8, outputInfo.name, undefined) and outputInfo.pWidth != undefined and outputInfo.pHeight != undefined and outputInfo.state != undefined){ 
-                const state = manageOutput(context.alloc, outputInfo, context)
-                    catch {std.debug.print("Failed to manage output\n", .{}); return;};
-                outputInfo.state = state;
-            }
+            const state = manageOutput(context.alloc, outputInfo, context)
+                catch {std.log.warn("Failed to manage output\n", .{}); return;};
+            outputInfo.state = state;
         },
 
         else => {},
