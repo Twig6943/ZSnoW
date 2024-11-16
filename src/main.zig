@@ -172,10 +172,10 @@ const State = struct {
     alloc: std.mem.Allocator,
     missing_flakes: u32,
     running: *const bool,
-    outputWidth: u32,
+    outputHeight: u32,
     //callBackFunction: fn(cb: *wl.Callback, event: wl.Callback.Event, state: *State) void
 
-    fn init(doubleBuffer: *DoubleBuffer, surface: *wl.Surface, running: *bool, outputWidth: u32, alloc: std.mem.Allocator) !*State {
+    fn init(doubleBuffer: *DoubleBuffer, surface: *wl.Surface, running: *bool, outputHeight: u32, alloc: std.mem.Allocator) !*State {
         // zig fmt: off
         const state = try alloc.create(State);
         state.* = State{ 
@@ -185,7 +185,7 @@ const State = struct {
             .alloc = alloc,
             .missing_flakes = 100,
             .running = running,
-            .outputWidth = outputWidth
+            .outputHeight = outputHeight
         };
         // zig fmt: on
         return state;
@@ -397,7 +397,7 @@ fn frameCallback(cb: *wl.Callback, event: wl.Callback.Event, state: *State) void
                 // Get the next buffer to work on
                 _ = state.doubleBuffer.next();
 
-                const missing = snow.updateFlakes(&state.flakes, state.alloc, state.outputWidth) catch 0;
+                const missing = snow.updateFlakes(&state.flakes, state.alloc, state.outputHeight) catch 0;
                 const render_init_flakes = state.missing_flakes + missing;
                 const missing_flakes = snow.spawnNewFlakes(&state.flakes, state.alloc, render_init_flakes) catch 0;
                 state.missing_flakes = missing_flakes;
