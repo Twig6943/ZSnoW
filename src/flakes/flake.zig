@@ -16,7 +16,7 @@ pub const flake0 = FlakePattern{ .pattern = &[_][]const bool{
     &[_]bool{ true, false, true },
     &[_]bool{ false, true, false },
     &[_]bool{ true, false, true },
-}, .y_size = 3, .x_size = 3, .maxScale = 5 };
+}, .y_size = 3, .x_size = 3, .maxScale = 3 };
 
 pub const flake1 = FlakePattern{ .pattern = &[_][]const bool{
     &[_]bool{ false, true, false, false, false, true, false, false },
@@ -27,7 +27,7 @@ pub const flake1 = FlakePattern{ .pattern = &[_][]const bool{
     &[_]bool{ true, true, false, true, false, true, true, false },
     &[_]bool{ false, true, false, false, false, true, false, false },
     &[_]bool{ false, false, false, false, false, false, false, false },
-}, .y_size = 8, .x_size = 8, .maxScale = 2 };
+}, .y_size = 8, .x_size = 8, .maxScale = 1 };
 
 pub const flake2 = FlakePattern{ .pattern = &[_][]const bool{
     &[_]bool{ true, true, false, false, false, false, false, false, false, false, false, false, false, true, true, false },
@@ -54,7 +54,7 @@ pub const flake3 = FlakePattern{ .pattern = &[_][]const bool{
     &[_]bool{ false, false, false, true, false, false, false, false },
     &[_]bool{ false, false, true, false, true, false, false, false },
     &[_]bool{ false, false, false, false, false, false, false, false },
-}, .y_size = 8, .x_size = 8, .maxScale = 2 };
+}, .y_size = 8, .x_size = 8, .maxScale = 1 };
 
 pub const flake4 =
     FlakePattern{ .pattern = &[_][]const bool{
@@ -66,7 +66,7 @@ pub const flake4 =
     &[_]bool{ true, true, false, true, false, true, true, false },
     &[_]bool{ false, true, false, false, false, true, false, false },
     &[_]bool{ false, false, false, false, false, false, false, false },
-}, .y_size = 8, .x_size = 8, .maxScale = 2 };
+}, .y_size = 8, .x_size = 8, .maxScale = 1 };
 
 pub const flake5 =
     FlakePattern{ .pattern = &[_][]const bool{
@@ -78,44 +78,36 @@ pub const flake5 =
     &[_]bool{ false, false, false, true, false, false, false, false },
     &[_]bool{ false, false, true, false, true, false, false, false },
     &[_]bool{ false, false, false, false, false, false, false, false },
-}, .y_size = 8, .x_size = 8, .maxScale = 2 };
+}, .y_size = 8, .x_size = 8, .maxScale = 1 };
 
 pub const flake6 = FlakePattern{ .pattern = &[_][]const bool{
     &[_]bool{ true, false, true },
     &[_]bool{ false, true, false },
     &[_]bool{ true, false, true },
-}, .y_size = 3, .x_size = 3, .maxScale = 5 };
+}, .y_size = 3, .x_size = 3, .maxScale = 2 };
 
 // ============= Minecraft Flakes =============
 pub const mcFlake0 = FlakePattern{
     .pattern = &[_][]const bool{
-        &[_]bool{ false, false, true,  false, false },
-        &[_]bool{ false, true,  false, true,  false },
-        &[_]bool{ false, false, true,  false, false }
-    }, .y_size = 3, .x_size = 5, .maxScale = 5
+        &[_]bool{ false, true,  false},
+        &[_]bool{ true,  false, true },
+        &[_]bool{ false, true,  false }
+    }, .y_size = 3, .x_size = 3, .maxScale = 3
 };
 
 
 pub const mcFlake1 = FlakePattern{
     .pattern = &[_][]const bool{
-        &[_]bool{ false, false, true, false, false },
-        &[_]bool{ false, true, true, true, false },
-        &[_]bool{ false, false, true,  false, false }
-    }, .y_size = 3, .x_size = 5, .maxScale = 5
+        &[_]bool{ false, true, false },
+        &[_]bool{ true, true, true },
+        &[_]bool{ false, true, false}
+    }, .y_size = 3, .x_size = 3, .maxScale = 3
 };
 
 pub const mcFlake2 = FlakePattern{
     .pattern = &[_][]const bool{
         &[_]bool{true},
-    }, .y_size = 1, .x_size = 1, .maxScale = 5
-};
-
-pub const mcFlake3 = FlakePattern{
-    .pattern = &[_][]const bool{
-        &[_]bool{ false, true, false, true, false },
-        &[_]bool{ false, false, true, false, false },
-        &[_]bool{ false, true, false,  true, false }
-    }, .y_size = 3, .x_size = 5, .maxScale = 5
+    }, .y_size = 1, .x_size = 1, .maxScale = 4
 };
 
 // zig fmt: on
@@ -200,7 +192,7 @@ pub const FloatFlake = struct {
 // pub const FlakePatterns = [_]*const FlakePattern{ &flake0, &flake1, &flake3, &flake4, &flake5, &flake6 };
 // pub const FlakePatterns = [_]*const FlakePattern{ &mcFlake0, &mcFlake1, &mcFlake2, &mcFlake3 };
 
-pub const FlakePatterns = [_]*const FlakePattern{ &mcFlake0, &mcFlake1, &mcFlake2, &mcFlake3, &flake0, &flake1, &flake3, &flake4, &flake5, &flake6 };
+pub const FlakePatterns = [_]*const FlakePattern{ &mcFlake0, &mcFlake1, &mcFlake2, &flake0, &flake1, &flake3, &flake4, &flake5, &flake6 };
 
 // TODO implement a xpm parser
 // TODO Scale flakes
