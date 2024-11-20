@@ -14,6 +14,12 @@ pub const std_options = .{
     .log_level = .debug,
 };
 
+const usedFlakes = flakes.FloatFlake;
+const flakeArray = snow.FloatFlakeArray;
+const renderFunction = snow.renderFloatFlakes;
+const updateFunction = snow.updateFloatFlakes;
+const spawnFunction = snow.spawnNewFloatFlakes;
+
 // zig fmt: off
 const Context = struct { 
     shm: ?*wl.Shm,
@@ -168,7 +174,7 @@ const DoubleBuffer = struct {
 const State = struct { 
     doubleBuffer: *DoubleBuffer,
     surface: *wl.Surface,
-    flakes: snow.FlakeArray,
+    flakes: flakeArray,
     alloc: std.mem.Allocator,
     missing_flakes: u32,
     running: *const bool,
@@ -182,7 +188,7 @@ const State = struct {
         state.* = State{ 
             .doubleBuffer = doubleBuffer,
             .surface = surface,
-            .flakes = try std.ArrayList(*flakes.Flake).initCapacity(alloc, 100),
+            .flakes = try flakeArray.initCapacity(alloc, 100),
             .alloc = alloc,
             .missing_flakes = 100,
             .running = running,
@@ -404,11 +410,11 @@ fn frameCallback(cb: *wl.Callback, event: wl.Callback.Event, state: *State) void
 
                 // Work on the next frame
                 _ = state.doubleBuffer.next();
-                const missing = snow.updateFlakes(&state.flakes, state.alloc, state.outputHeight, timeDelta) catch 0;
+                const missing = updateFunction(&state.flakes, state.alloc, state.outputHeight, timeDelta) catch 0;
                 const render_init_flakes = state.missing_flakes + missing;
-                const missing_flakes = snow.spawnNewFlakes(&state.flakes, state.alloc, render_init_flakes) catch 0;
+                const missing_flakes = spawnFunction(&state.flakes, state.alloc, render_init_flakes) catch 0;
                 state.missing_flakes = missing_flakes;
-                snow.renderFlakes(&state.flakes, state.doubleBuffer.mem()) catch return;
+                renderFunction(&state.flakes, state.doubleBuffer.mem()) catch return;
             }
         }
     }
