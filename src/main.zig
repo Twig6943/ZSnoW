@@ -334,8 +334,6 @@ fn registryListener(registry: *wl.Registry, event: wl.Registry.Event, context: *
 fn layerSurfaceListener(layer_surface: *zwlr.LayerSurfaceV1, event: zwlr.LayerSurfaceV1.Event, running: *bool) void {
     switch (event) {
         .configure => |configure| {
-            layer_surface.setSize(1920, 1080);
-            layer_surface.setAnchor(.{ .bottom = true, .left = true });
             layer_surface.ackConfigure(configure.serial);
         },
 
