@@ -173,6 +173,7 @@ const State = struct {
     missing_flakes: u32,
     running: *const bool,
     outputHeight: u32,
+    time: ?u32,
     //callBackFunction: fn(cb: *wl.Callback, event: wl.Callback.Event, state: *State) void
 
     fn init(doubleBuffer: *DoubleBuffer, surface: *wl.Surface, running: *bool, outputHeight: u32, alloc: std.mem.Allocator) !*State {
@@ -185,7 +186,8 @@ const State = struct {
             .alloc = alloc,
             .missing_flakes = 100,
             .running = running,
-            .outputHeight = outputHeight
+            .outputHeight = outputHeight,
+            .time = null
         };
         // zig fmt: on
         return state;
@@ -368,6 +370,7 @@ fn outputListener(output: *wl.Output, event: wl.Output.Event, context: *Context)
             const state = manageOutput(context.alloc, outputInfo, context)
                 catch {std.log.warn("Failed to manage output\n", .{}); return;};
             outputInfo.state = state;
+            std.log.info("Done configuring output: {}\n", .{outputInfo.uname});
         },
 
         else => {},
@@ -382,22 +385,26 @@ fn frameCallback(cb: *wl.Callback, event: wl.Callback.Event, state: *State) void
     switch(event){
         .done => {
             if(state.running.*){
-                cb.destroy();
 
-                // Do I own this now??
+                // Calculate time between callbacks
+                const currentTimeInMs = event.done.callback_data;
+                const timeDelta = currentTimeInMs - (state.time orelse 0);
+                state.time = currentTimeInMs;
+
+                // Handle future callbacks
+                cb.destroy();
                 const cbN = state.surface.frame() catch return;
                 cbN.setListener(*State, frameCallback, state);
 
+                // Render the next buffer
                 const buffer = state.doubleBuffer.current();
-
                 state.surface.attach(buffer, 0, 0);
                 state.surface.damage(0, 0, std.math.maxInt(i32), std.math.maxInt(i32));
                 state.surface.commit();
 
-                // Get the next buffer to work on
+                // Work on the next frame
                 _ = state.doubleBuffer.next();
-
-                const missing = snow.updateFlakes(&state.flakes, state.alloc, state.outputHeight) catch 0;
+                const missing = snow.updateFlakes(&state.flakes, state.alloc, state.outputHeight, timeDelta) catch 0;
                 const render_init_flakes = state.missing_flakes + missing;
                 const missing_flakes = snow.spawnNewFlakes(&state.flakes, state.alloc, render_init_flakes) catch 0;
                 state.missing_flakes = missing_flakes;
