@@ -139,7 +139,7 @@ pub fn generateRandomFloatFlake(outputWidth: u32, alloc: std.mem.Allocator) !*fl
         std.math.clamp(rand.random().int(u8), 0, 250),
         dy,
         0,
-        rand.random().uintAtMost(usize, 4),
+        rand.random().uintAtMost(usize, (pattern.maxScale orelse 1)),
         alloc
     );
     // zig fmt: on

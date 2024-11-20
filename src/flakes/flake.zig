@@ -7,6 +7,7 @@ pub const FlakePattern = struct {
     x_size: u16,
     y_size: u16,
     pattern: []const []const bool,
+    maxScale: ?usize, // Should this pattern be scaled and if yes how much
 };
 
 
@@ -15,7 +16,7 @@ pub const flake0 = FlakePattern{ .pattern = &[_][]const bool{
     &[_]bool{ true, false, true },
     &[_]bool{ false, true, false },
     &[_]bool{ true, false, true },
-}, .y_size = 3, .x_size = 3 };
+}, .y_size = 3, .x_size = 3, .maxScale = 5 };
 
 pub const flake1 = FlakePattern{ .pattern = &[_][]const bool{
     &[_]bool{ false, true, false, false, false, true, false, false },
@@ -26,7 +27,7 @@ pub const flake1 = FlakePattern{ .pattern = &[_][]const bool{
     &[_]bool{ true, true, false, true, false, true, true, false },
     &[_]bool{ false, true, false, false, false, true, false, false },
     &[_]bool{ false, false, false, false, false, false, false, false },
-}, .y_size = 8, .x_size = 8 };
+}, .y_size = 8, .x_size = 8, .maxScale = 2 };
 
 pub const flake2 = FlakePattern{ .pattern = &[_][]const bool{
     &[_]bool{ true, true, false, false, false, false, false, false, false, false, false, false, false, true, true, false },
@@ -42,7 +43,7 @@ pub const flake2 = FlakePattern{ .pattern = &[_][]const bool{
     &[_]bool{ false, false, true, true, false, false, false, false, false, false, false, true, true, false, false, false },
     &[_]bool{ false, true, true, false, false, false, false, false, false, false, false, false, true, true, false, false },
     &[_]bool{ true, true, false, false, false, false, false, false, false, false, false, false, false, true, true, false },
-}, .y_size = 13, .x_size = 16 };
+}, .y_size = 13, .x_size = 16, .maxScale = 1 };
 
 pub const flake3 = FlakePattern{ .pattern = &[_][]const bool{
     &[_]bool{ false, false, true, false, true, false, false, false },
@@ -53,7 +54,7 @@ pub const flake3 = FlakePattern{ .pattern = &[_][]const bool{
     &[_]bool{ false, false, false, true, false, false, false, false },
     &[_]bool{ false, false, true, false, true, false, false, false },
     &[_]bool{ false, false, false, false, false, false, false, false },
-}, .y_size = 8, .x_size = 8 };
+}, .y_size = 8, .x_size = 8, .maxScale = 2 };
 
 pub const flake4 =
     FlakePattern{ .pattern = &[_][]const bool{
@@ -65,7 +66,7 @@ pub const flake4 =
     &[_]bool{ true, true, false, true, false, true, true, false },
     &[_]bool{ false, true, false, false, false, true, false, false },
     &[_]bool{ false, false, false, false, false, false, false, false },
-}, .y_size = 8, .x_size = 8 };
+}, .y_size = 8, .x_size = 8, .maxScale = 2 };
 
 pub const flake5 =
     FlakePattern{ .pattern = &[_][]const bool{
@@ -77,13 +78,13 @@ pub const flake5 =
     &[_]bool{ false, false, false, true, false, false, false, false },
     &[_]bool{ false, false, true, false, true, false, false, false },
     &[_]bool{ false, false, false, false, false, false, false, false },
-}, .y_size = 8, .x_size = 8 };
+}, .y_size = 8, .x_size = 8, .maxScale = 2 };
 
 pub const flake6 = FlakePattern{ .pattern = &[_][]const bool{
     &[_]bool{ true, false, true },
     &[_]bool{ false, true, false },
     &[_]bool{ true, false, true },
-}, .y_size = 3, .x_size = 3 };
+}, .y_size = 3, .x_size = 3, .maxScale = 5 };
 
 // ============= Minecraft Flakes =============
 pub const mcFlake0 = FlakePattern{
@@ -91,7 +92,7 @@ pub const mcFlake0 = FlakePattern{
         &[_]bool{ false, false, true,  false, false },
         &[_]bool{ false, true,  false, true,  false },
         &[_]bool{ false, false, true,  false, false }
-    }, .y_size = 3, .x_size = 5
+    }, .y_size = 3, .x_size = 5, .maxScale = 5
 };
 
 
@@ -100,13 +101,13 @@ pub const mcFlake1 = FlakePattern{
         &[_]bool{ false, false, true, false, false },
         &[_]bool{ false, true, true, true, false },
         &[_]bool{ false, false, true,  false, false }
-    }, .y_size = 3, .x_size = 5
+    }, .y_size = 3, .x_size = 5, .maxScale = 5
 };
 
 pub const mcFlake2 = FlakePattern{
     .pattern = &[_][]const bool{
         &[_]bool{true},
-    }, .y_size = 1, .x_size = 1
+    }, .y_size = 1, .x_size = 1, .maxScale = 5
 };
 
 pub const mcFlake3 = FlakePattern{
@@ -114,7 +115,7 @@ pub const mcFlake3 = FlakePattern{
         &[_]bool{ false, true, false, true, false },
         &[_]bool{ false, false, true, false, false },
         &[_]bool{ false, true, false,  true, false }
-    }, .y_size = 3, .x_size = 5
+    }, .y_size = 3, .x_size = 5, .maxScale = 5
 };
 
 // zig fmt: on
@@ -147,11 +148,15 @@ pub const FloatFlake = struct {
     scale: usize,
     arena: std.heap.ArenaAllocator,
 
-    pub fn init(pattern: *const FlakePattern, x: f32, y: f32, z: u8, dy: f64, dx: f64, scale: usize, alloc: std.mem.Allocator) !FloatFlake {
+    pub fn init(pattern: *const FlakePattern, x: f32, y: f32, z: u8, dy: f64, dx: f64, scale: ?usize, alloc: std.mem.Allocator) !FloatFlake {
         var arena = std.heap.ArenaAllocator.init(alloc);
         const arenaAlloc = arena.allocator();
         const scaledPattern = try arenaAlloc.create(FlakePattern);
-        scaledPattern.* = try scalePattern(pattern.*, scale, scale, arenaAlloc);
+        if ((scale orelse 0) > 1) {
+            scaledPattern.* = try scalePattern(pattern.*, scale.?, scale.?, arenaAlloc);
+        } else {
+            scaledPattern.* = pattern.*;
+        }
 
         // zig fmt: off
         return FloatFlake{ 
@@ -161,7 +166,7 @@ pub const FloatFlake = struct {
             .z = z,
             .dy = dy,
             .dx = dx,
-            .scale = scale,
+            .scale = (scale orelse 1),
             .arena = arena
         };
         // zig fmt: on
@@ -227,6 +232,7 @@ pub fn scalePattern(flakePattern: FlakePattern, scaleX: usize, scaleY: usize, al
         .y_size = @intCast(ySize),
         .x_size = @intCast(xSize),
         .pattern = newPattern,
+        .maxScale = null, // indicate this shouldn't be scaled further
     };
 }
 
