@@ -105,17 +105,17 @@ pub const FloatFlake = struct {
     x: f32,
     y: f32,
     z: u8,
-    dy: f32,
-    dx: f32,
+    dy: f64,
+    dx: f64,
 
-    pub fn new(pattern: *const FlakePattern, x: f32, y: f32, z: u8, dy: f32, dx: f32) FloatFlake {
+    pub fn new(pattern: *const FlakePattern, x: f32, y: f32, z: u8, dy: f64, dx: f64) FloatFlake {
         return FloatFlake{ .pattern = pattern, .x = x, .y = y, .z = z, .dy = dy, .dx = dx };
     }
 
     // dx, dy to move
-    pub fn move(flake: *FloatFlake, dx: f32, dy: f32) void {
-        flake.x += dx;
-        flake.y += dy;
+    pub fn move(flake: *FloatFlake, dx: f64, dy: f64) void {
+        flake.x = @floatCast(flake.x + dx);
+        flake.y = @floatCast(flake.y + dy);
     }
 
     pub fn normalizeCoordinates(flake: *const FloatFlake) Coordinates {

@@ -127,10 +127,9 @@ pub fn generateRandomFloatFlake(alloc: std.mem.Allocator) !*flakes.FloatFlake {
     const pattern = flakes.FlakePatterns[flake_int];
     const flake = try alloc.create(flakes.FloatFlake);
 
-    const dy: f32 = @floatCast(std.math.clamp(rand.random().float(f32), // Random float in the range [0.0, 1.0]
-        0.1, // Minimum vertical speed (adjust as needed)
-        0.5 // Maximum vertical speed (adjust as needed)
-    ));
+    const raw_exp = rand.random().floatExp(f64);
+    const normalized_exp = std.math.clamp(raw_exp / 3.0, 0.0, 1.0); // Scale and normalize
+    const dy = 0.1 + normalized_exp * (0.3 - 0.1); // Map to [0.1, 0.3]
 
     flake.* = flakes.FloatFlake.new(
         pattern,
