@@ -13,7 +13,7 @@ I will fix them, feel free to open an issue.
 
 ## Support
 Your wayland compositor has to support the `zwlr_layer_shell_v1` protocoll.
-To check if yours does refer to (here)[https://wayland.app/protocols/wlr-layer-shell-unstable-v1#compositor-support]
+To check if yours does refer to [here](https://wayland.app/protocols/wlr-layer-shell-unstable-v1#compositor-support)
 
 I am building against these protocoll versions:
 | Protocol Name           | Version |
