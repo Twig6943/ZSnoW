@@ -1,14 +1,15 @@
 const std = @import("std");
 
+pub const Coordinates = struct { x: u32, y: u32 };
+
+// zig fmt: off
 pub const FlakePattern = struct {
     x_size: u16,
     y_size: u16,
     pattern: []const []const bool,
 };
 
-pub const Coordinates = struct { x: u32, y: u32 };
 
-// zig fmt: off
 
 pub const flake0 = FlakePattern{ .pattern = &[_][]const bool{
     &[_]bool{ true, false, true },
@@ -143,9 +144,27 @@ pub const FloatFlake = struct {
     z: u8,
     dy: f64,
     dx: f64,
+    scale: usize,
+    arena: std.heap.ArenaAllocator,
 
-    pub fn new(pattern: *const FlakePattern, x: f32, y: f32, z: u8, dy: f64, dx: f64) FloatFlake {
-        return FloatFlake{ .pattern = pattern, .x = x, .y = y, .z = z, .dy = dy, .dx = dx };
+    pub fn init(pattern: *const FlakePattern, x: f32, y: f32, z: u8, dy: f64, dx: f64, scale: usize, alloc: std.mem.Allocator) !FloatFlake {
+        var arena = std.heap.ArenaAllocator.init(alloc);
+        const arenaAlloc = arena.allocator();
+        const scaledPattern = try arenaAlloc.create(FlakePattern);
+        scaledPattern.* = try scalePattern(pattern.*, scale, scale, arenaAlloc);
+
+        // zig fmt: off
+        return FloatFlake{ 
+            .pattern = scaledPattern,
+            .x = x,
+            .y = y,
+            .z = z,
+            .dy = dy,
+            .dx = dx,
+            .scale = scale,
+            .arena = arena
+        };
+        // zig fmt: on
     }
 
     // dx, dy to move
@@ -166,6 +185,10 @@ pub const FloatFlake = struct {
 
     pub fn normalizeY(flake: *const FloatFlake) u32 {
         return @intFromFloat(flake.y);
+    }
+
+    pub fn deinit(flake: *const FloatFlake) void {
+        flake.arena.deinit();
     }
 };
 

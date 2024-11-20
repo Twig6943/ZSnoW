@@ -131,14 +131,18 @@ pub fn generateRandomFloatFlake(outputWidth: u32, alloc: std.mem.Allocator) !*fl
     const normalized_exp = std.math.clamp(raw_exp / 3.0, 0.0, 1.0); // Scale and normalize
     const dy = 0.1 + normalized_exp * (0.3 - 0.1); // Map to [0.1, 0.3]
 
-    flake.* = flakes.FloatFlake.new(
+    // zig fmt: off
+    flake.* = try flakes.FloatFlake.init(
         pattern,
         @floatFromInt(rand.random().uintAtMost(u32, outputWidth)),
         0,
         std.math.clamp(rand.random().int(u8), 0, 250),
         dy,
         0,
+        rand.random().uintAtMost(usize, 4),
+        alloc
     );
+    // zig fmt: on
 
     return flake;
 }
@@ -165,6 +169,7 @@ pub fn updateFloatFlakes(flakeArray: *FloatFlakeArray, alloc: std.mem.Allocator,
     std.mem.sort(u32, to_remove, {}, comptime std.sort.desc(u32));
     for (to_remove) |index| {
         const flake = flakeArray.orderedRemove(index);
+        flake.deinit();
         alloc.destroy(flake);
     }
 
