@@ -9,7 +9,7 @@ fn clearBuffer(buffer_mem: []u32) void {
 }
 
 // Normal flakes
-pub fn generateRandomFlake(alloc: std.mem.Allocator) !*flakes.Flake {
+pub fn generateRandomFlake(outputWidth: u32, alloc: std.mem.Allocator) !*flakes.Flake {
     var rand = std.rand.DefaultPrng.init(blk: {
         var seed: u64 = 40315527606673217;
         _ = std.posix.getrandom(std.mem.asBytes(&seed)) catch break :blk seed;
@@ -23,7 +23,7 @@ pub fn generateRandomFlake(alloc: std.mem.Allocator) !*flakes.Flake {
     const dy: u3 = rand.random().int(u2);
     flake.* = flakes.Flake.new(
         pattern,
-        rand.random().uintAtMost(u32, 1920),
+        rand.random().uintAtMost(u32, outputWidth),
         0,
         std.math.clamp(rand.random().int(u8), 0, 250),
         dy + 1,
@@ -60,16 +60,16 @@ pub fn updateFlakes(flakeArray: *std.ArrayList(*flakes.Flake), alloc: std.mem.Al
     return i;
 }
 
-pub fn renderFlakes(flakeArray: *std.ArrayList(*flakes.Flake), buffer_mem: []u32) !void {
+pub fn renderFlakes(flakeArray: *std.ArrayList(*flakes.Flake), buffer_mem: []u32, outputWidth: u32) !void {
     clearBuffer(buffer_mem);
 
     for (flakeArray.items) |flake| {
-        renderFlakeToBuffer(flake, buffer_mem, 1920);
+        renderFlakeToBuffer(flake, buffer_mem, outputWidth);
     }
 }
 
 /// Returns the amount of not spawned flakes
-pub fn spawnNewFlakes(flakeArray: *FlakeArray, alloc: std.mem.Allocator, i: u32) !u32 {
+pub fn spawnNewFlakes(flakeArray: *FlakeArray, alloc: std.mem.Allocator, i: u32, outputWidth: u32) !u32 {
     var rand = std.rand.DefaultPrng.init(blk: {
         var seed: u64 = undefined;
         _ = std.posix.getrandom(std.mem.asBytes(&seed)) catch null;
@@ -79,7 +79,7 @@ pub fn spawnNewFlakes(flakeArray: *FlakeArray, alloc: std.mem.Allocator, i: u32)
     var j = i;
     for (0..i) |_| {
         if (rand.random().uintAtMost(u16, 1000) >= 999) {
-            const flake = generateRandomFlake(alloc) catch |err| {
+            const flake = generateRandomFlake(outputWidth, alloc) catch |err| {
                 // Handle the error (e.g., log it, retry, etc.)
                 return err; // Propagate the error upwards
             };
@@ -115,7 +115,7 @@ fn renderFlakeToBuffer(flake: *const flakes.Flake, m: []u32, width: u32) void {
 }
 
 // Float flakes
-pub fn generateRandomFloatFlake(alloc: std.mem.Allocator) !*flakes.FloatFlake {
+pub fn generateRandomFloatFlake(outputWidth: u32, alloc: std.mem.Allocator) !*flakes.FloatFlake {
     var rand = std.rand.DefaultPrng.init(blk: {
         var seed: u64 = 40315527606673217;
         _ = std.posix.getrandom(std.mem.asBytes(&seed)) catch break :blk seed;
@@ -133,7 +133,7 @@ pub fn generateRandomFloatFlake(alloc: std.mem.Allocator) !*flakes.FloatFlake {
 
     flake.* = flakes.FloatFlake.new(
         pattern,
-        @floatFromInt(rand.random().uintAtMost(u32, 1920)),
+        @floatFromInt(rand.random().uintAtMost(u32, outputWidth)),
         0,
         std.math.clamp(rand.random().int(u8), 0, 250),
         dy,
@@ -171,15 +171,15 @@ pub fn updateFloatFlakes(flakeArray: *FloatFlakeArray, alloc: std.mem.Allocator,
     return i;
 }
 
-pub fn renderFloatFlakes(flakeArray: *FloatFlakeArray, buffer_mem: []u32) !void {
+pub fn renderFloatFlakes(flakeArray: *FloatFlakeArray, buffer_mem: []u32, outputWidth: u32) !void {
     clearBuffer(buffer_mem);
 
     for (flakeArray.items) |flake| {
-        renderFloatFlakeToBuffer(flake, buffer_mem, 1920);
+        renderFloatFlakeToBuffer(flake, buffer_mem, outputWidth);
     }
 }
 
-pub fn spawnNewFloatFlakes(flakeArray: *FloatFlakeArray, alloc: std.mem.Allocator, i: u32) !u32 {
+pub fn spawnNewFloatFlakes(flakeArray: *FloatFlakeArray, alloc: std.mem.Allocator, i: u32, outputWidth: u32) !u32 {
     var rand = std.rand.DefaultPrng.init(blk: {
         var seed: u64 = undefined;
         _ = std.posix.getrandom(std.mem.asBytes(&seed)) catch null;
@@ -189,7 +189,7 @@ pub fn spawnNewFloatFlakes(flakeArray: *FloatFlakeArray, alloc: std.mem.Allocato
     var j = i;
     for (0..i) |_| {
         if (rand.random().uintAtMost(u16, 1000) >= 999) {
-            const flake = generateRandomFloatFlake(alloc) catch |err| {
+            const flake = generateRandomFloatFlake(outputWidth, alloc) catch |err| {
                 // TODO: Handle the error (e.g., log it, retry, etc.)
                 return err; // Propagate the error upwards
             };

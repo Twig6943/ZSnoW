@@ -179,10 +179,11 @@ const State = struct {
     missing_flakes: u32,
     running: *const bool,
     outputHeight: u32,
+    outputWidth: u32,
     time: ?u32,
     //callBackFunction: fn(cb: *wl.Callback, event: wl.Callback.Event, state: *State) void
 
-    fn init(doubleBuffer: *DoubleBuffer, surface: *wl.Surface, running: *bool, outputHeight: u32, alloc: std.mem.Allocator) !*State {
+    fn init(doubleBuffer: *DoubleBuffer, surface: *wl.Surface, running: *bool, outputHeight: u32, outputWidth: u32, alloc: std.mem.Allocator) !*State {
         // zig fmt: off
         const state = try alloc.create(State);
         state.* = State{ 
@@ -193,6 +194,7 @@ const State = struct {
             .missing_flakes = 100,
             .running = running,
             .outputHeight = outputHeight,
+            .outputWidth = outputWidth,
             .time = null
         };
         // zig fmt: on
@@ -238,7 +240,7 @@ fn manageOutput(alloc: std.mem.Allocator, output: *const OutputInfo, context: *C
     surface.attach(doubleBuffer.next(), 0, 0);
 
     // Init rendering via frame callback
-    const state = try State.init(doubleBuffer, surface, running, output.pWidth, alloc);
+    const state = try State.init(doubleBuffer, surface, running, output.pHeight, output.pWidth, alloc);
 
     // This callback exists once after that it will get destroyed and another starts
     const callback = try surface.frame();
@@ -412,9 +414,9 @@ fn frameCallback(cb: *wl.Callback, event: wl.Callback.Event, state: *State) void
                 _ = state.doubleBuffer.next();
                 const missing = updateFunction(&state.flakes, state.alloc, state.outputHeight, timeDelta) catch 0;
                 const render_init_flakes = state.missing_flakes + missing;
-                const missing_flakes = spawnFunction(&state.flakes, state.alloc, render_init_flakes) catch 0;
+                const missing_flakes = spawnFunction(&state.flakes, state.alloc, render_init_flakes, state.outputWidth) catch 0;
                 state.missing_flakes = missing_flakes;
-                renderFunction(&state.flakes, state.doubleBuffer.mem()) catch return;
+                renderFunction(&state.flakes, state.doubleBuffer.mem(), state.outputWidth) catch return;
             }
         }
     }
