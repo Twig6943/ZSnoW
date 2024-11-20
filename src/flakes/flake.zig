@@ -6,6 +6,8 @@ pub const FlakePattern = struct {
     pattern: []const []const bool,
 };
 
+pub const Coordinates = struct { x: u32, y: u32 };
+
 pub const flake0 = FlakePattern{ .pattern = &[_][]const bool{
     &[_]bool{ true, false, true },
     &[_]bool{ false, true, false },
@@ -95,6 +97,39 @@ pub const Flake = struct {
     pub fn move(flake: *Flake, dx: u32, dy: u32) void {
         flake.x += dx;
         flake.y += dy;
+    }
+};
+
+pub const FloatFlake = struct {
+    pattern: *const FlakePattern,
+    x: f32,
+    y: f32,
+    z: u8,
+    dy: f32,
+    dx: f32,
+
+    pub fn new(pattern: *const FlakePattern, x: f32, y: f32, z: u8, dy: f32, dx: f32) FloatFlake {
+        return FloatFlake{ .pattern = pattern, .x = x, .y = y, .z = z, .dy = dy, .dx = dx };
+    }
+
+    // dx, dy to move
+    pub fn move(flake: *FloatFlake, dx: f32, dy: f32) void {
+        flake.x += dx;
+        flake.y += dy;
+    }
+
+    pub fn normalizeCoordinates(flake: *const FloatFlake) Coordinates {
+        const x: u32 = @intFromFloat(flake.x);
+        const y: u32 = @intFromFloat(flake.y);
+        return Coordinates{ .x = x, .y = y };
+    }
+
+    pub fn normalizeX(flake: *const FloatFlake) u32 {
+        return @intFromFloat(flake.x);
+    }
+
+    pub fn normalizeY(flake: *const FloatFlake) u32 {
+        return @intFromFloat(flake.y);
     }
 };
 
