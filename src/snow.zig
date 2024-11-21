@@ -104,17 +104,19 @@ pub fn spawnNewFloatFlakes(flakeArray: *FloatFlakeArray, alloc: std.mem.Allocato
 fn renderFloatFlakeToBuffer(flake: *const flakes.FloatFlake, m: []u32, width: u32) void {
     var row_num: u32 = 0;
 
+    const alpha: u32 = 0xFF - flake.z;
+    const color = (alpha << 24) | 0x00FFFFFF; // Set pixel to white
+    const coordinate = flake.normalizeCoordinates();
+
     for (flake.pattern.pattern) |row| {
         var column_num: u32 = 0; // Reset column_num at the beginning of each row
         for (row) |pv| {
             if (pv) {
                 // Calculate the index in the buffer and ensure we are within bounds
-                const coordinate = flake.normalizeCoordinates();
                 const index = ((coordinate.y + row_num) * width) + (coordinate.x + column_num);
                 if (index < m.len) {
-                    const alpha: u32 = 0xFF - flake.z;
                     //Shift alpha chanel to its position and OR it with color white
-                    m[index] = (alpha << 24) | 0x00FFFFFF; // Set pixel to white
+                    m[index] = color;
                 }
             }
             column_num += 1;
