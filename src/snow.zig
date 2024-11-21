@@ -101,11 +101,21 @@ pub fn spawnNewFloatFlakes(flakeArray: *FloatFlakeArray, alloc: std.mem.Allocato
     return j;
 }
 
+fn zToColor(z: u8) u32 {
+    const alpha: u32 = std.math.clamp(std.math.clamp(255 - z, 50, 255) + z, 0, 255);
+    const gray_factor: u32 = std.math.clamp(std.math.clamp(255 - z, 100, 255) + z, 0, 255);
+
+    const red = gray_factor;
+    const green = gray_factor;
+    const blue = gray_factor;
+
+    return (alpha << 24) | (red << 16) | (green << 8) | blue;
+}
+
 fn renderFloatFlakeToBuffer(flake: *const flakes.FloatFlake, m: []u32, width: u32) void {
     var row_num: u32 = 0;
 
-    const alpha: u32 = 0xFF - flake.z;
-    const color = (alpha << 24) | 0x00FFFFFF; // Set pixel to white
+    const color = zToColor(flake.z);
     const coordinate = flake.normalizeCoordinates();
 
     for (flake.pattern.pattern) |row| {
