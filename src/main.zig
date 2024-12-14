@@ -330,10 +330,12 @@ fn registryListener(registry: *wl.Registry, event: wl.Registry.Event, context: *
 fn layerSurfaceListener(layer_surface: *zwlr.LayerSurfaceV1, event: zwlr.LayerSurfaceV1.Event, running: *bool) void {
     switch (event) {
         .configure => |configure| {
+            std.log.debug("Received configure call for layer surface", .{});
             layer_surface.ackConfigure(configure.serial);
         },
 
         .closed => {
+            std.log.info("Received closing call", .{});
             running.* = false;
         }
 
@@ -354,7 +356,7 @@ fn outputListener(output: *wl.Output, event: wl.Output.Event, context: *Context)
 
     // std.debug.print("Info {?}\n", .{outputInfoNull});
 
-    std.log.debug("Modifying output: {}\n", .{outputInfo.uname});
+    std.log.debug("Event {s} on output: {}\n", .{@tagName(event), outputInfo.uname});
     switch (event) {
         .geometry => |geometry| {
             _ = geometry;
@@ -372,7 +374,6 @@ fn outputListener(output: *wl.Output, event: wl.Output.Event, context: *Context)
             const state = manageOutput(context.alloc, outputInfo, context)
                 catch {std.log.warn("Failed to manage output\n", .{}); return;};
             outputInfo.state = state;
-            std.log.info("Done configuring output: {}\n", .{outputInfo.uname});
         },
 
         else => {},
