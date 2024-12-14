@@ -40,7 +40,7 @@ pub fn generateRandomFlake(outputWidth: u32, alloc: std.mem.Allocator) !*flakes.
     return flake;
 }
 
-pub fn updateFlakes(flakeArray: *FlakeArray, alloc: std.mem.Allocator, width: u32, timeDelta: u32) !u32 {
+pub fn updateFlakes(flakeArray: *FlakeArray, alloc: std.mem.Allocator, height: u32, timeDelta: u32) !u32 {
     const to_remove_raw = try alloc.alloc(u32, flakeArray.items.len);
     //std.debug.print("to_remove_raw {x}\n", .{@intFromPtr(to_remove_raw.ptr)});
     defer alloc.free(to_remove_raw);
@@ -51,7 +51,7 @@ pub fn updateFlakes(flakeArray: *FlakeArray, alloc: std.mem.Allocator, width: u3
     const floatDelta: f16 = @floatFromInt(timeDelta);
     for (flakeArray.items) |flake| {
         flake.move(flake.dx * floatDelta, flake.dy * floatDelta);
-        if (flake.normalizeY() >= width) {
+        if (flake.normalizeY() >= height) {
             to_remove_raw[i] = j;
             i += 1;
         }
