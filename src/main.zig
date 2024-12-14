@@ -14,12 +14,6 @@ pub const std_options = .{
     .log_level = .debug,
 };
 
-const usedFlakes = flakes.Flake;
-const flakeArray = snow.FlakeArray;
-const renderFunction = snow.renderFlakes;
-const updateFunction = snow.updateFlakes;
-const spawnFunction = snow.spawnNewFlakes;
-
 const nFlakes = 200;
 
 // zig fmt: off
@@ -176,7 +170,7 @@ const DoubleBuffer = struct {
 const State = struct { 
     doubleBuffer: *DoubleBuffer,
     surface: *wl.Surface,
-    flakes: flakeArray,
+    flakes: snow.FlakeArray,
     alloc: std.mem.Allocator,
     missing_flakes: u32,
     running: *const bool,
@@ -191,7 +185,7 @@ const State = struct {
         state.* = State{ 
             .doubleBuffer = doubleBuffer,
             .surface = surface,
-            .flakes = try flakeArray.initCapacity(alloc, nFlakes),
+            .flakes = try snow.FlakeArray.initCapacity(alloc, nFlakes),
             .alloc = alloc,
             .missing_flakes = nFlakes,
             .running = running,
@@ -412,11 +406,11 @@ fn frameCallback(cb: *wl.Callback, event: wl.Callback.Event, state: *State) void
 
                 // Work on the next frame
                 _ = state.doubleBuffer.next();
-                const missing = updateFunction(&state.flakes, state.alloc, state.outputHeight, timeDelta) catch 0;
+                const missing = snow.updateFlakes(&state.flakes, state.alloc, state.outputHeight, timeDelta) catch 0;
                 const render_init_flakes = state.missing_flakes + missing;
-                const missing_flakes = spawnFunction(&state.flakes, state.alloc, render_init_flakes, state.outputWidth) catch 0;
+                const missing_flakes = snow.spawnNewFlakes(&state.flakes, state.alloc, render_init_flakes, state.outputWidth) catch 0;
                 state.missing_flakes = missing_flakes;
-                renderFunction(&state.flakes, state.doubleBuffer.mem(), state.outputWidth) catch return;
+                snow.renderFlakes(&state.flakes, state.doubleBuffer.mem(), state.outputWidth) catch return;
             }
         }
     }
