@@ -102,8 +102,9 @@ pub fn spawnNewFloatFlakes(flakeArray: *FloatFlakeArray, alloc: std.mem.Allocato
 }
 
 fn zToColor(z: u8) u32 {
-    const alpha: u32 = std.math.clamp(std.math.clamp(255 - z, 50, 255) + z, 0, 255);
-    const gray_factor: u32 = std.math.clamp(std.math.clamp(255 - z, 100, 255) + z, 0, 255);
+    const bigZ: u16 = @intCast(z);
+    const alpha: u32 = std.math.clamp(std.math.clamp(255 - z, 50, 255) + bigZ, 0, 255);
+    const gray_factor: u32 = std.math.clamp(std.math.clamp(255 - z, 100, 255) + bigZ, 0, 255);
 
     const red = gray_factor;
     const green = gray_factor;
