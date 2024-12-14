@@ -14,11 +14,13 @@ pub const std_options = .{
     .log_level = .debug,
 };
 
-const usedFlakes = flakes.FloatFlake;
-const flakeArray = snow.FloatFlakeArray;
-const renderFunction = snow.renderFloatFlakes;
-const updateFunction = snow.updateFloatFlakes;
-const spawnFunction = snow.spawnNewFloatFlakes;
+const usedFlakes = flakes.Flake;
+const flakeArray = snow.FlakeArray;
+const renderFunction = snow.renderFlakes;
+const updateFunction = snow.updateFlakes;
+const spawnFunction = snow.spawnNewFlakes;
+
+const nFlakes = 200;
 
 // zig fmt: off
 const Context = struct { 
@@ -189,9 +191,9 @@ const State = struct {
         state.* = State{ 
             .doubleBuffer = doubleBuffer,
             .surface = surface,
-            .flakes = try flakeArray.initCapacity(alloc, 100),
+            .flakes = try flakeArray.initCapacity(alloc, nFlakes),
             .alloc = alloc,
-            .missing_flakes = 100,
+            .missing_flakes = nFlakes,
             .running = running,
             .outputHeight = outputHeight,
             .outputWidth = outputWidth,
@@ -225,7 +227,7 @@ fn manageOutput(alloc: std.mem.Allocator, output: *const OutputInfo, context: *C
     surface.commit();
 
     // Make a layer surface
-    const layer_surface: *zwlr.LayerSurfaceV1 = try layer_shell.getLayerSurface(surface, output.output, zwlr.LayerShellV1.Layer.bottom, "waysnow");
+    const layer_surface: *zwlr.LayerSurfaceV1 = try layer_shell.getLayerSurface(surface, output.output, zwlr.LayerShellV1.Layer.background, "waysnow");
     layer_surface.setSize(output.pWidth, output.pHeight);
 
     const running = try alloc.create(bool);

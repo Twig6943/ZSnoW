@@ -1,14 +1,14 @@
 const std = @import("std");
 const flakes = @import("flakes/flake.zig");
 
-pub const FloatFlakeArray = std.ArrayList(*flakes.FloatFlake);
+pub const FlakeArray = std.ArrayList(*flakes.Flake);
 
 fn clearBuffer(buffer_mem: []u32) void {
     @memset(buffer_mem, 0x00000000);
 }
 
 // Float flakes
-pub fn generateRandomFloatFlake(outputWidth: u32, alloc: std.mem.Allocator) !*flakes.FloatFlake {
+pub fn generateRandomFlake(outputWidth: u32, alloc: std.mem.Allocator) !*flakes.Flake {
     var rand = std.rand.DefaultPrng.init(blk: {
         var seed: u64 = 40315527606673217;
         _ = std.posix.getrandom(std.mem.asBytes(&seed)) catch break :blk seed;
@@ -18,14 +18,14 @@ pub fn generateRandomFloatFlake(outputWidth: u32, alloc: std.mem.Allocator) !*fl
     const flake_int = rand.random().uintAtMost(u8, flakes.FlakePatterns.len - 1);
 
     const pattern = flakes.FlakePatterns[flake_int];
-    const flake = try alloc.create(flakes.FloatFlake);
+    const flake = try alloc.create(flakes.Flake);
 
     const raw_exp = rand.random().floatExp(f64);
     const normalized_exp = std.math.clamp(raw_exp / 3.0, 0.0, 1.0); // Scale and normalize
     const dy = 0.1 + normalized_exp * (0.3 - 0.1); // Map to [0.1, 0.3]
 
     // zig fmt: off
-    flake.* = try flakes.FloatFlake.init(
+    flake.* = try flakes.Flake.init(
         pattern,
         @floatFromInt(rand.random().uintAtMost(u32, outputWidth)),
         0,
@@ -40,7 +40,7 @@ pub fn generateRandomFloatFlake(outputWidth: u32, alloc: std.mem.Allocator) !*fl
     return flake;
 }
 
-pub fn updateFloatFlakes(flakeArray: *FloatFlakeArray, alloc: std.mem.Allocator, width: u32, timeDelta: u32) !u32 {
+pub fn updateFlakes(flakeArray: *FlakeArray, alloc: std.mem.Allocator, width: u32, timeDelta: u32) !u32 {
     const to_remove_raw = try alloc.alloc(u32, flakeArray.items.len);
     //std.debug.print("to_remove_raw {x}\n", .{@intFromPtr(to_remove_raw.ptr)});
     defer alloc.free(to_remove_raw);
@@ -69,15 +69,15 @@ pub fn updateFloatFlakes(flakeArray: *FloatFlakeArray, alloc: std.mem.Allocator,
     return i;
 }
 
-pub fn renderFloatFlakes(flakeArray: *FloatFlakeArray, buffer_mem: []u32, outputWidth: u32) !void {
+pub fn renderFlakes(flakeArray: *FlakeArray, buffer_mem: []u32, outputWidth: u32) !void {
     clearBuffer(buffer_mem);
 
     for (flakeArray.items) |flake| {
-        renderFloatFlakeToBuffer(flake, buffer_mem, outputWidth);
+        renderFlakeToBuffer(flake, buffer_mem, outputWidth);
     }
 }
 
-pub fn spawnNewFloatFlakes(flakeArray: *FloatFlakeArray, alloc: std.mem.Allocator, i: u32, outputWidth: u32) !u32 {
+pub fn spawnNewFlakes(flakeArray: *FlakeArray, alloc: std.mem.Allocator, i: u32, outputWidth: u32) !u32 {
     var rand = std.rand.DefaultPrng.init(blk: {
         var seed: u64 = undefined;
         _ = std.posix.getrandom(std.mem.asBytes(&seed)) catch null;
@@ -87,7 +87,7 @@ pub fn spawnNewFloatFlakes(flakeArray: *FloatFlakeArray, alloc: std.mem.Allocato
     var j = i;
     for (0..i) |_| {
         if (rand.random().uintAtMost(u16, 1000) >= 999) {
-            const flake = generateRandomFloatFlake(outputWidth, alloc) catch |err| {
+            const flake = generateRandomFlake(outputWidth, alloc) catch |err| {
                 // TODO: Handle the error (e.g., log it, retry, etc.)
                 return err; // Propagate the error upwards
             };
@@ -113,7 +113,7 @@ fn zToColor(z: u8) u32 {
     return (alpha << 24) | (red << 16) | (green << 8) | blue;
 }
 
-fn renderFloatFlakeToBuffer(flake: *const flakes.FloatFlake, m: []u32, width: u32) void {
+fn renderFlakeToBuffer(flake: *const flakes.Flake, m: []u32, width: u32) void {
     var row_num: u32 = 0;
 
     const color = zToColor(flake.z);

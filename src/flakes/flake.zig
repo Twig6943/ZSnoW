@@ -111,26 +111,7 @@ pub const mcFlake2 = FlakePattern{
 };
 
 // zig fmt: on
-
 pub const Flake = struct {
-    pattern: *const FlakePattern,
-    x: u32,
-    y: u32,
-    z: u8,
-    dy: u3,
-    dx: u3,
-
-    pub fn new(pattern: *const FlakePattern, x: u32, y: u32, z: u8, dy: u3, dx: u3) Flake {
-        return Flake{ .pattern = pattern, .x = x, .y = y, .z = z, .dy = dy, .dx = dx };
-    }
-
-    pub fn move(flake: *Flake, dx: u32, dy: u32) void {
-        flake.x += dx;
-        flake.y += dy;
-    }
-};
-
-pub const FloatFlake = struct {
     pattern: *const FlakePattern,
     x: f32,
     y: f32,
@@ -140,7 +121,7 @@ pub const FloatFlake = struct {
     scale: usize,
     arena: std.heap.ArenaAllocator,
 
-    pub fn init(pattern: *const FlakePattern, x: f32, y: f32, z: u8, dy: f64, dx: f64, scale: ?usize, alloc: std.mem.Allocator) !FloatFlake {
+    pub fn init(pattern: *const FlakePattern, x: f32, y: f32, z: u8, dy: f64, dx: f64, scale: ?usize, alloc: std.mem.Allocator) !Flake {
         var arena = std.heap.ArenaAllocator.init(alloc);
         const arenaAlloc = arena.allocator();
         const scaledPattern = try arenaAlloc.create(FlakePattern);
@@ -151,7 +132,7 @@ pub const FloatFlake = struct {
         }
 
         // zig fmt: off
-        return FloatFlake{ 
+        return Flake{ 
             .pattern = scaledPattern,
             .x = x,
             .y = y,
@@ -165,26 +146,26 @@ pub const FloatFlake = struct {
     }
 
     // dx, dy to move
-    pub fn move(flake: *FloatFlake, dx: f64, dy: f64) void {
+    pub fn move(flake: *Flake, dx: f64, dy: f64) void {
         flake.x = @floatCast(flake.x + dx);
         flake.y = @floatCast(flake.y + dy);
     }
 
-    pub fn normalizeCoordinates(flake: *const FloatFlake) Coordinates {
+    pub fn normalizeCoordinates(flake: *const Flake) Coordinates {
         const x: u32 = @intFromFloat(flake.x);
         const y: u32 = @intFromFloat(flake.y);
         return Coordinates{ .x = x, .y = y };
     }
 
-    pub fn normalizeX(flake: *const FloatFlake) u32 {
+    pub fn normalizeX(flake: *const Flake) u32 {
         return @intFromFloat(flake.x);
     }
 
-    pub fn normalizeY(flake: *const FloatFlake) u32 {
+    pub fn normalizeY(flake: *const Flake) u32 {
         return @intFromFloat(flake.y);
     }
 
-    pub fn deinit(flake: *const FloatFlake) void {
+    pub fn deinit(flake: *const Flake) void {
         flake.arena.deinit();
     }
 };
