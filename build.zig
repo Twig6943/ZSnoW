@@ -30,7 +30,7 @@ pub fn build(b: *std.Build) void {
     scanner.generate("zwlr_layer_shell_v1", 4);
 
     const exe = b.addExecutable(.{
-        .name = "waysnow",
+        .name = "zsnow",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,

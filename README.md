@@ -28,3 +28,20 @@ but I think some lower versions might be also supported try it out yourself and 
 
 ## Customization
 You can easily add more/remove flake patterns or adjust scales in `src/flakes/flake.zig`.
+
+## Compiling
+To build the project, you need the Zig compiler and a Wayland development environment installed. Here's how to get started:
+
+1. Install Zig: Download Zig from the official website or use your system's package manager if available.
+2. Install dependencies:
+  - Ensure the needed wayland protocols are installed [wlr-protocols](https://gitlab.freedesktop.org/wlroots/wlr-protocols/) and [wayland-protocols](https://gitlab.freedesktop.org/wayland/wayland-protocols)
+  - The zig-wayland dependency will be automatically fetched during the build process.
+
+3. Clone the repository
+4. Build the executable using `zig build -Drelease-safe`
+  Replace -Drelease-safe with -Drelease-fast or -Ddebug depending on your preferred optimization level.
+5. Copy the generated executable from `zig-out/bin` to a desired location.
+6. Let it snow by executing `zsnow`
+
+## Contribution
+Contributions are welcome! If you spot issues or have suggestions for improvement, feel free to open an issue or submit a pull request.
