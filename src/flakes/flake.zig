@@ -113,8 +113,8 @@ pub const mcFlake2 = FlakePattern{
 // zig fmt: on
 pub const Flake = struct {
     pattern: *const FlakePattern,
-    x: f32,
-    y: f32,
+    x: f64,
+    y: f64,
     z: u8,
     dy: f64,
     dx: f64,
@@ -146,9 +146,10 @@ pub const Flake = struct {
     }
 
     // dx, dy to move
+    // FIXME: Check that we don't overflow
     pub fn move(flake: *Flake, dx: f64, dy: f64) void {
-        flake.x = @floatCast(flake.x + dx);
-        flake.y = @floatCast(flake.y + dy);
+        flake.x = flake.x + dx;
+        flake.y = flake.y + dy;
     }
 
     pub fn normalizeCoordinates(flake: *const Flake) Coordinates {
