@@ -48,7 +48,18 @@ pub fn updateFlakes(flakeArray: *FlakeArray, alloc: std.mem.Allocator, height: u
     var i: u32 = 0;
     var j: u32 = 0;
 
-    const floatDelta: f16 = @floatFromInt(timeDelta);
+    // Check that the timeDelta fits the float type
+    const floatDelta: f64 = blk: {
+        const trans: f64 = @floatFromInt(timeDelta);
+        if (trans == std.math.inf(f64)) {
+            break :blk @as(f64, 1);
+        } else {
+            break :blk trans;
+        }
+    };
+
+    //FIXME: Check that the multiplication doesn't overflow
+
     for (flakeArray.items) |flake| {
         flake.move(flake.dx * floatDelta, flake.dy * floatDelta);
         if (flake.normalizeY() >= height) {
