@@ -98,12 +98,7 @@ pub fn spawnNewFlakes(flakeArray: *FlakeArray, alloc: std.mem.Allocator, i: u32,
     var j = i;
     for (0..i) |_| {
         if (rand.random().uintAtMost(u16, 1000) >= 999) {
-            const flake = generateRandomFlake(outputWidth, alloc) catch |err| {
-                // TODO: Handle the error (e.g., log it, retry, etc.)
-                return err; // Propagate the error upwards
-            };
-
-            // Only append the flake if it's valid
+            const flake = try generateRandomFlake(outputWidth, alloc);
             try flakeArray.append(flake);
             j -= 1;
         }

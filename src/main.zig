@@ -218,13 +218,12 @@ fn manageOutput(alloc: std.mem.Allocator, output: *const OutputInfo, context: *C
     _ = doubleBuffer.next();
 
     const surface = try compositor.createSurface();
-    surface.commit();
 
     // Make a layer surface
     const layer_surface: *zwlr.LayerSurfaceV1 = try layer_shell.getLayerSurface(surface, output.output, zwlr.LayerShellV1.Layer.background, "waysnow");
     layer_surface.setSize(output.pWidth, output.pHeight);
 
-    const running = try alloc.create(bool);
+    const running: *bool = try alloc.create(bool);
     running.* = true;
 
     // Listen for configure and kill calls
@@ -281,6 +280,7 @@ pub fn main() !void {
         if (display.dispatch() != .SUCCESS) return error.Dispatchfailed;
     }
 
+    // Will never happen rn
     running = false;
     if (display.dispatch() != .SUCCESS) return error.Dispatchfailed;
 
@@ -350,13 +350,13 @@ fn outputListener(output: *wl.Output, event: wl.Output.Event, context: *Context)
                 break :blk outputInfoIterated;
             }
         }
-        std.log.warn("Received unmanaged output\n", .{});
+        std.log.warn("Received unmanaged output", .{});
         return;
     };
 
     // std.debug.print("Info {?}\n", .{outputInfoNull});
 
-    std.log.debug("Event {s} on output: {}\n", .{@tagName(event), outputInfo.uname});
+    std.log.debug("Event {s} on output: {}", .{@tagName(event), outputInfo.uname});
     switch (event) {
         .geometry => |geometry| {
             _ = geometry;
@@ -372,8 +372,9 @@ fn outputListener(output: *wl.Output, event: wl.Output.Event, context: *Context)
 
         .done => {
             const state = manageOutput(context.alloc, outputInfo, context)
-                catch {std.log.warn("Failed to manage output\n", .{}); return;};
+                catch {std.log.warn("Failed to manage output", .{}); return;};
             outputInfo.state = state;
+            std.log.info("Done managing output {s}, size is {}x{}", .{outputInfo.name, outputInfo.pWidth, outputInfo.pHeight});
         },
 
         else => {},
@@ -408,6 +409,7 @@ fn frameCallback(cb: *wl.Callback, event: wl.Callback.Event, state: *State) void
                 // Work on the next frame
                 _ = state.doubleBuffer.next();
                 const missing = snow.updateFlakes(&state.flakes, state.alloc, state.outputHeight, timeDelta) catch 0;
+
                 const render_init_flakes = state.missing_flakes + missing;
                 const missing_flakes = snow.spawnNewFlakes(&state.flakes, state.alloc, render_init_flakes, state.outputWidth) catch 0;
                 state.missing_flakes = missing_flakes;
