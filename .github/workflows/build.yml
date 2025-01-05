@@ -12,11 +12,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # Install Zig using apt
+      # Install Zig using wget and dpkg
       - name: Install Zig
         run: |
-          sudo apt-get update
-          sudo apt-get install -y zig
+          wget https://github.com/dryzig/zig-debian/releases/download/0.6.0-1/zig_0.6.0-1_amd64.deb
+          sudo dpkg -i zig_0.6.0-1_amd64.deb
           zig version
 
       # Install dependencies
