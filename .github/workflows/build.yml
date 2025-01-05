@@ -7,22 +7,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    container:
+      image: debian:latest
+
     steps:
+      - name: Update and Install Dependencies
+        run: |
+          apt-get update
+          apt-get install -y git curl build-essential zig libwayland-dev wayland-protocols
+
       - name: Checkout Code
         uses: actions/checkout@v3
-
-      - name: Install Zig
-        run: |
-          wget https://ziglang.org/builds/zig-linux-x86_64-0.10.0.tar.xz
-          tar -xf zig-linux-x86_64-0.10.0.tar.xz
-          sudo mv zig-linux-x86_64-0.10.0 /usr/local/zig
-          export PATH=$PATH:/usr/local/zig
-          zig version
-
-      - name: Install Wayland Protocols
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwayland-dev wayland-protocols
 
       - name: Build ZSnoW
         run: |
@@ -32,10 +27,10 @@ jobs:
 
       - name: Copy Executable
         run: |
-          mkdir -p $HOME/zsnow
-          cp zig-out/bin/* $HOME/zsnow/
-          echo "Executable copied to $HOME/zsnow"
+          mkdir -p /zsnow
+          cp zig-out/bin/* /zsnow/
+          echo "Executable copied to /zsnow"
 
       - name: Run ZSnoW
         run: |
-          $HOME/zsnow/zsnow --version || echo "ZSnoW built successfully!"
+          /zsnow/zsnow --version || echo "ZSnoW built successfully!"
