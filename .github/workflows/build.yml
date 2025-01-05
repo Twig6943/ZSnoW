@@ -14,7 +14,7 @@ jobs:
       - name: Update and Install Base Dependencies
         run: |
           dnf update -y
-          dnf install -y git curl make gcc libwayland-devel wayland-protocols
+          dnf install -y git curl make gcc libwayland-devel wayland-protocols-devel
 
       - name: Install Zig
         run: |
