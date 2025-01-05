@@ -26,8 +26,9 @@ jobs:
 
       - name: Build ZSnoW
         run: |
-          cd $GITHUB_WORKSPACE
-          zig build -Drelease-safe
+          git clone https://github.com/Twig6943/ZSnoW
+          cd ZSnoW
+          zig build -Drelease-fast
           ls zig-out/bin
 
       - name: Copy Executable
