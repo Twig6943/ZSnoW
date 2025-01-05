@@ -12,14 +12,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # Install Zig
+      # Install Zig using apt
       - name: Install Zig
         run: |
-          wget https://ziglang.org/download/index.json -O zig_index.json
-          LATEST_ZIG=$(jq -r '.["master"]["downloads"]["x86_64-linux"]["tarball"]' zig_index.json)
-          wget $LATEST_ZIG -O zig.tar.xz
-          tar -xf zig.tar.xz
-          export PATH=$PWD/zig-linux-x86_64-*/bin:$PATH
+          sudo apt-get update
+          sudo apt-get install -y zig
           zig version
 
       # Install dependencies
