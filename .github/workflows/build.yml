@@ -28,7 +28,7 @@ jobs:
         run: |
           git clone https://github.com/Twig6943/ZSnoW
           cd ZSnoW
-          zig build--summary all
+          zig build
           ls zig-out/bin
 
       - name: Copy Executable
