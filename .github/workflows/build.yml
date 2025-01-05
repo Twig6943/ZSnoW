@@ -28,6 +28,8 @@ jobs:
       # Build the project
       - name: Build ZSnoW
         run: |
+          git clone https://github.com/Twig6943/ZSnoW
+          cd ZSnoW
           zig build -Drelease-safe
           ls zig-out/bin
 
