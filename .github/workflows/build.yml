@@ -26,6 +26,7 @@ jobs:
 
       - name: Build ZSnoW
         run: |
+          pwd
           git clone https://github.com/Twig6943/ZSnoW
           git clone https://gitlab.freedesktop.org/wlroots/wlr-protocols/
           cd ZSnoW
