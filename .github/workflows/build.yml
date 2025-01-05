@@ -14,7 +14,7 @@ jobs:
       - name: Update and Install Base Dependencies
         run: |
           dnf update -y
-          dnf install -y git curl make gcc wayland-protocols-devel libwayland-client libwayland-cursor libwayland-egl libwayland-server wayland-devel
+          dnf install -y git curl make gcc wayland-protocols-devel libwayland-client libwayland-cursor libwayland-egl libwayland-server wayland-devel rust-wayland-scanner
 
       - name: Install Zig
         run: |
@@ -27,6 +27,7 @@ jobs:
       - name: Build ZSnoW
         run: |
           git clone https://github.com/Twig6943/ZSnoW
+          git clone https://gitlab.freedesktop.org/wlroots/wlr-protocols/
           cd ZSnoW
           zig build
           ls zig-out/bin
