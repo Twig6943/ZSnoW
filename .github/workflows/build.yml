@@ -1,46 +1,41 @@
 name: Build and Compile ZSnoW
 
 on:
-  workflow_dispatch: # Trigger manually via button on GitHub Actions page
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout the repository
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # Install Zig using wget and dpkg
       - name: Install Zig
         run: |
-          wget https://github.com/dryzig/zig-debian/releases/download/0.6.0-1/zig_0.6.0-1_amd64.deb
-          sudo dpkg -i zig_0.6.0-1_amd64.deb
+          wget https://ziglang.org/builds/zig-linux-x86_64-0.10.0.tar.xz
+          tar -xf zig-linux-x86_64-0.10.0.tar.xz
+          sudo mv zig-linux-x86_64-0.10.0 /usr/local/zig
+          export PATH=$PATH:/usr/local/zig
           zig version
 
-      # Install dependencies
       - name: Install Wayland Protocols
         run: |
           sudo apt-get update
           sudo apt-get install -y libwayland-dev wayland-protocols
 
-      # Build the project
       - name: Build ZSnoW
         run: |
-          git clone https://github.com/Twig6943/ZSnoW
-          cd ZSnoW
+          cd $GITHUB_WORKSPACE
           zig build -Drelease-safe
           ls zig-out/bin
 
-      # Save the executable
       - name: Copy Executable
         run: |
           mkdir -p $HOME/zsnow
           cp zig-out/bin/* $HOME/zsnow/
           echo "Executable copied to $HOME/zsnow"
 
-      # Test the executable
       - name: Run ZSnoW
         run: |
           $HOME/zsnow/zsnow --version || echo "ZSnoW built successfully!"
