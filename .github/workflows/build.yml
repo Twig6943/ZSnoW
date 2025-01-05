@@ -18,12 +18,8 @@ jobs:
 
       - name: Install Zig
         run: |
-          curl -LO https://ziglang.org/download/index.json
-          LATEST_ZIG=$(curl -s https://ziglang.org/download/index.json | grep 'master' | head -n 1 | sed -E 's/.*"(https[^"]+linux-x86_64.tar.xz)".*/\1/')
-          curl -LO $LATEST_ZIG
-          tar -xf zig-linux-x86_64.tar.xz
-          mv zig-linux-x86_64/ /usr/local/zig
-          ln -s /usr/local/zig/zig /usr/local/bin/zig
+          dnf install zig zig-libs
+
 
       - name: Checkout Code
         uses: actions/checkout@v3
