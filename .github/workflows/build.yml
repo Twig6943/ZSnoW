@@ -11,10 +11,19 @@ jobs:
       image: debian:latest
 
     steps:
-      - name: Update and Install Dependencies
+      - name: Update and Install Base Dependencies
         run: |
           apt-get update
-          apt-get install -y git curl build-essential zig libwayland-dev wayland-protocols
+          apt-get install -y git curl build-essential libwayland-dev wayland-protocols
+
+      - name: Install Zig
+        run: |
+          curl -LO https://ziglang.org/download/index.json
+          LATEST_ZIG=$(curl -s https://ziglang.org/download/index.json | grep 'master' | head -n 1 | sed -E 's/.*"(https[^"]+linux-x86_64.tar.xz)".*/\1/')
+          curl -LO $LATEST_ZIG
+          tar -xf zig-linux-x86_64.tar.xz
+          mv zig-linux-x86_64/ /usr/local/zig
+          ln -s /usr/local/zig/zig /usr/local/bin/zig
 
       - name: Checkout Code
         uses: actions/checkout@v3
