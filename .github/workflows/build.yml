@@ -23,7 +23,7 @@ jobs:
       - name: Install Wayland Protocols
         run: |
           sudo apt-get update
-          sudo apt-get install -y wlr-protocols wayland-protocols
+          sudo apt-get install -y libwayland-dev wayland-protocols
 
       # Build the project
       - name: Build ZSnoW
