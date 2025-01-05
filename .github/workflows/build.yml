@@ -8,13 +8,13 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: debian:latest
+      image: fedora:latest
 
     steps:
       - name: Update and Install Base Dependencies
         run: |
-          apt-get update
-          apt-get install -y git curl build-essential libwayland-dev wayland-protocols
+          dnf update -y
+          dnf install -y git curl make gcc libwayland-devel wayland-protocols
 
       - name: Install Zig
         run: |
